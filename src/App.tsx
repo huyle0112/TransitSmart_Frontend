@@ -17,7 +17,7 @@ function App() {
                     <Route path="/lines" element={<HomePage />} />
                     <Route path="/stops" element={<HomePage />} />
                     <Route path="/route/:routeId" element={<RouteDetailPage />} />
-                    <Route path="/profile" element={<ProfilePage />} />
+                    <Route path="/profile" element={<HomePage />} />
                 </Route>
 
                 <Route element={<AuthLayout />}>
