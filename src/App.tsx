@@ -4,8 +4,8 @@ import AuthLayout from "./layouts/AuthLayout";
 import HomePage from "./pages/HomePage";
 import SearchResultsPage from "./pages/SearchResultsPage";
 import RouteDetailPage from "./pages/RouteDetailPage";
-import ProfilePage from "./pages/ProfilePage";
 import { AuthProvider } from "./contexts/AuthContext";
+import ProfilePage from "./pages/ProfilePage";
 
 function App() {
     return (
