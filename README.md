@@ -125,6 +125,21 @@ pnpm lint
 | `pnpm lint` | Chạy ESLint để check code quality |
 | `pnpm preview` | Preview production build locally |
 
+## Tính năng chính
+
+### Người dùng (User)
+- Tìm kiếm tuyến xe buýt
+- Xem chi tiết tuyến và lịch trình
+- Hỗ trợ đa ngôn ngữ (Tiếng Việt, Tiếng Anh, Tiếng Nhật)
+
+### Quản trị (Admin)
+- **Quản lý tuyến xe (Bus Route Management)**:
+  - Truy cập tại: `/admin/bus-lines`
+  - Xem danh sách tất cả các tuyến
+  - **Thêm mới**: Tạo tuyến xe mới với các thông tin chi tiết
+  - **Chỉnh sửa**: Cập nhật thông tin tuyến xe
+  - **Xóa**: Xóa tuyến xe khỏi hệ thống
+
 ## Cấu hình
 
 ### Path Aliases
