@@ -8,6 +8,7 @@ import RouteDetailPage from "./pages/RouteDetailPage";
 import { AuthProvider } from "./contexts/AuthContext";
 import ProfilePage from "./pages/ProfilePage";
 import AdminBusLinesPage from "./pages/admin/AdminBusLinesPage";
+import MapSearchPage from "./pages/MapSearchPage";
 
 function App() {
     return (
@@ -15,6 +16,7 @@ function App() {
             <Routes>
                 <Route element={<MainLayout />}>
                     <Route path="/" element={<HomePage />} />
+                    <Route path="/map" element={<MapSearchPage />} />
                     <Route path="/results" element={<SearchResultsPage />} />
                     <Route path="/lines" element={<BusLinesPage />} />
                     <Route path="/stops" element={<HomePage />} />

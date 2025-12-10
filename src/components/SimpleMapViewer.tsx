@@ -9,6 +9,7 @@ import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 // @ts-ignore
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+import { on } from 'events';
 
 // Fix default marker icons
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -24,12 +25,13 @@ interface SimpleMapViewerProps {
     coordinates?: any[];
     geometries?: any[];
     segments?: any[];
+    onMapClick?: (lat: number, lng: number) => void;
 }
 
 /**
  * Simple MapViewer using vanilla Leaflet to avoid React-Leaflet re-render issues
  */
-export default function SimpleMapViewer({ coordinates = [], geometries = [], segments = [] }: SimpleMapViewerProps) {
+export default function SimpleMapViewer({ coordinates = [], geometries = [], segments = [], onMapClick }: SimpleMapViewerProps) {
     const mapRef = useRef<HTMLDivElement>(null);
     const mapInstanceRef = useRef<L.Map | null>(null);
     const layersRef = useRef<L.Layer[]>([]);
@@ -58,6 +60,12 @@ export default function SimpleMapViewer({ coordinates = [], geometries = [], seg
             }).addTo(map);
 
             mapInstanceRef.current = map;
+
+            map.on('click', (e) => {
+                if (onMapClick) {
+                    onMapClick(e.latlng.lat, e.latlng.lng);
+                }
+            });
 
             // Fix size after render
             setTimeout(() => {
@@ -142,7 +150,7 @@ export default function SimpleMapViewer({ coordinates = [], geometries = [], seg
         return () => {
             // Don't destroy map on every render, only on unmount
         };
-    }, [coordinates, geometries, segments]);
+    }, [coordinates, geometries, segments, onMapClick]);
 
     // Cleanup on unmount
     useEffect(() => {
@@ -158,6 +166,22 @@ export default function SimpleMapViewer({ coordinates = [], geometries = [], seg
             }
         };
     }, []);
+
+    useEffect(() => {
+        const map = mapInstanceRef.current;
+        if (!map || !onMapClick) return;
+
+        const handleMapClick = (e: L.LeafletMouseEvent) => {
+            onMapClick(e.latlng.lat, e.latlng.lng);
+        };
+
+        map.on('click', handleMapClick);
+
+        // Cleanup: Gỡ bỏ sự kiện khi onMapClick thay đổi hoặc component unmount
+        return () => {
+            map.off('click', handleMapClick);
+        };
+    }, [onMapClick]);
 
     return (
         <div

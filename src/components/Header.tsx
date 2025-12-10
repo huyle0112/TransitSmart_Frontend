@@ -16,7 +16,7 @@ const Header = () => {
     };
 
     return (
-        <header className="sticky top-0 z-50 w-full bg-navy text-white shadow-md">
+        <header className="sticky top-0 z-1100 w-full bg-navy text-white shadow-md">
             <div className="container mx-auto px-4 h-16 flex items-center justify-between">
                 <Link to="/" className="flex items-center gap-2 group">
                     <div className="w-8 h-8 bg-orange rounded-lg flex items-center justify-center font-bold text-white shadow-sm group-hover:bg-orange-hover transition-colors">

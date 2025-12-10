@@ -1,7 +1,8 @@
 import SearchForm from '@/components/SearchForm';
 import NearbyStops from '@/components/NearbyStops';
 import { useNavigate } from 'react-router-dom';
-import { MapPin, Navigation, Shield } from 'lucide-react';
+import { MapPin, Navigation, Shield, Map } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 const FEATURE_CARDS = [
     {
@@ -62,8 +63,19 @@ export default function HomePage() {
                             </p>
                         </div>
 
-                        <div className="w-full max-w-md mx-auto lg:ml-auto">
+                        <div className="w-full max-w-md mx-auto lg:ml-auto space-y-4">
                             <SearchForm onSubmit={handleSearch} />
+                            
+                            {/* --- BẮT ĐẦU ĐOẠN CODE CẦN THÊM --- */}
+                            <Button 
+                                variant="outline" 
+                                className="w-full bg-white/10 hover:bg-white/20 text-white border-white/20 backdrop-blur-sm h-12 text-lg font-medium transition-all"
+                                onClick={() => navigate('/map')}
+                            >
+                                <Map className="mr-2 h-5 w-5" />
+                                Tìm trên bản đồ
+                            </Button>
+                            {/* --- KẾT THÚC ĐOẠN CODE CẦN THÊM --- */}
                         </div>
                     </div>
                 </div>
