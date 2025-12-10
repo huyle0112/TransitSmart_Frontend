@@ -9,7 +9,6 @@ import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 // @ts-ignore
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
-import { on } from 'events';
 
 // Fix default marker icons
 delete (L.Icon.Default.prototype as any)._getIconUrl;
