@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE = import.meta.env.VITE_API_URL;
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
 const apiClient = axios.create({
     baseURL: `${API_BASE}/api`,
@@ -47,5 +47,15 @@ export const saveFavorite = (payload: any) =>
 
 export const removeFavorite = (routeId: string) =>
     unwrap(apiClient.delete('/user/favorites', { params: { id: routeId } }));
+
+// Bus Routes API
+export const searchBusRoutes = (query: string) =>
+    unwrap(apiClient.get('/bus-lines/search', { params: { q: query } }));
+
+export const getBusLineDetails = (name: string) =>
+    unwrap(apiClient.get('/bus-lines/details', { params: { name } }));
+
+export const getBusRouteSchedule = (routeId: string) =>
+    unwrap(apiClient.get('/bus-lines/schedule', { params: { routeId } }));
 
 export default apiClient;
