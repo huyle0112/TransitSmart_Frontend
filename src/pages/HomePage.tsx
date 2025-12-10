@@ -31,14 +31,6 @@ export default function HomePage() {
         navigate('/results', { state: { from, to } });
     };
 
-    const handleNearbySelect = ({ stop, origin }: { stop: any; origin: any }) => {
-        navigate('/results', {
-            state: {
-                from: { label: 'Vị trí của tôi', coords: origin },
-                to: { label: stop.name, coords: stop.coords },
-            },
-        });
-    };
 
     return (
         <div className="min-h-screen bg-gray-50/50">
@@ -84,11 +76,9 @@ export default function HomePage() {
                 </div>
             </section>
 
-            {/* Nearby Stops */}
-            <section className="container mx-auto px-4 pb-16">
-                <div className="max-w-4xl mx-auto">
-                    <NearbyStops onSelectStop={handleNearbySelect} />
-                </div>
+            {/* Nearby Stops - Full Width */}
+            <section className="pb-16">
+                <NearbyStops />
             </section>
         </div>
     );

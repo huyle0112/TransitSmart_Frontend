@@ -8,8 +8,7 @@ import RouteDetailPage from "./pages/RouteDetailPage";
 import { AuthProvider } from "./contexts/AuthContext";
 import ProfilePage from "./pages/ProfilePage";
 import AdminBusLinesPage from "./pages/admin/AdminBusLinesPage";
-
-
+import StopSearchPage from "./pages/StopSearchPage";
 function App() {
     return (
         <AuthProvider>
@@ -18,7 +17,7 @@ function App() {
                     <Route path="/" element={<HomePage />} />
                     <Route path="/results" element={<SearchResultsPage />} />
                     <Route path="/lines" element={<BusLinesPage />} />
-                    <Route path="/stops" element={<HomePage />} />
+                    <Route path="/stops" element={<StopSearchPage />} />
                     <Route path="/route/:routeId" element={<RouteDetailPage />} />
                     <Route path="/profile" element={<ProfilePage />} />
 
