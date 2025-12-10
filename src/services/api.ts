@@ -58,4 +58,14 @@ export const getBusLineDetails = (name: string) =>
 export const getBusRouteSchedule = (routeId: string) =>
     unwrap(apiClient.get('/bus-lines/schedule', { params: { routeId } }));
 
+// Admin Bus Routes API
+export const createBusRoute = (data: any) =>
+    unwrap(apiClient.post('/bus-lines', data));
+
+export const updateBusRoute = (id: string, data: any) =>
+    unwrap(apiClient.put(`/bus-lines/${id}`, data));
+
+export const deleteBusRoute = (id: string) =>
+    unwrap(apiClient.delete(`/bus-lines/${id}`));
+
 export default apiClient;
