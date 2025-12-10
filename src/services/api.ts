@@ -59,6 +59,25 @@ export const getStopWithTimes = (stopId: string) =>
 
 export const createStop = (payload: any) =>
     unwrap(apiClient.post('/stop', payload));
+// Bus Routes API
+export const searchBusRoutes = (query: string) =>
+    unwrap(apiClient.get('/bus-lines/search', { params: { q: query } }));
+
+export const getBusLineDetails = (name: string) =>
+    unwrap(apiClient.get('/bus-lines/details', { params: { name } }));
+
+export const getBusRouteSchedule = (routeId: string) =>
+    unwrap(apiClient.get('/bus-lines/schedule', { params: { routeId } }));
+
+// Admin Bus Routes API
+export const createBusRoute = (data: any) =>
+    unwrap(apiClient.post('/bus-lines', data));
+
+export const updateBusRoute = (id: string, data: any) =>
+    unwrap(apiClient.put(`/bus-lines/${id}`, data));
+
+export const deleteBusRoute = (id: string) =>
+    unwrap(apiClient.delete(`/bus-lines/${id}`));
 
 // Health check endpoint
 export const healthCheck = () =>
