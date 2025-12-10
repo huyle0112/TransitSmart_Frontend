@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { findRoutes, saveFavorite } from '@/services/api';
 import { reverseGeocode } from '@/services/geocoding';
 import { useAuth } from '@/contexts/AuthContext';
-import { ArrowLeft, Search, MapPin, Loader2, Trash2, GripVertical } from 'lucide-react';
+import { ArrowLeft, Search, MapPin, Loader2, Trash2 } from 'lucide-react';
 
 // Key dùng để lưu trữ trong Session Storage
 const STORAGE_KEY = 'map-search-state';
@@ -60,20 +60,20 @@ export default function MapSearchPage() {
         isResizing.current = true;
         document.body.style.cursor = 'col-resize'; // Đổi con trỏ chuột toàn trang
         document.body.style.userSelect = 'none';     // Chặn bôi đen văn bản khi kéo
-        
+
         document.addEventListener('mousemove', handleMouseMove);
         document.addEventListener('mouseup', stopResizing);
     }, []);
 
     const handleMouseMove = useCallback((e: MouseEvent) => {
         if (!isResizing.current) return;
-        
+
         // Tính toán chiều rộng mới dựa trên vị trí chuột (e.clientX)
         // Giới hạn trong khoảng MIN_WIDTH và MAX_WIDTH
         let newWidth = e.clientX;
         if (newWidth < MIN_WIDTH) newWidth = MIN_WIDTH;
         if (newWidth > MAX_WIDTH) newWidth = MAX_WIDTH;
-        
+
         setSidebarWidth(newWidth);
     }, []);
 
@@ -81,7 +81,7 @@ export default function MapSearchPage() {
         isResizing.current = false;
         document.body.style.cursor = '';
         document.body.style.userSelect = '';
-        
+
         document.removeEventListener('mousemove', handleMouseMove);
         document.removeEventListener('mouseup', stopResizing);
     }, [handleMouseMove]);
@@ -181,11 +181,10 @@ export default function MapSearchPage() {
 
     const getInputContainerClass = (field: 'from' | 'to') => {
         const isActive = activeField === field;
-        return `relative p-2 rounded-lg border-2 transition-colors cursor-pointer ${
-            isActive
+        return `relative p-2 rounded-lg border-2 transition-colors cursor-pointer ${isActive
                 ? 'border-orange bg-orange/5 ring-1 ring-orange'
                 : 'border-transparent bg-gray-50 hover:bg-gray-100'
-        }`;
+            }`;
     };
 
     return (
@@ -193,16 +192,16 @@ export default function MapSearchPage() {
         // SỬA: Đảm bảo chiều cao tính toán chính xác để khớp với màn hình
         <div className="flex flex-col h-[calc(100vh-64px)] overflow-hidden">
             <div className="flex flex-1 overflow-hidden relative">
-                
+
                 {/* --- LEFT SIDEBAR (RESIZABLE) --- */}
-                <div 
+                <div
                     className="bg-white border-r border-gray-200 flex flex-col z-10 shadow-xl flex-shrink-0"
                     style={{ width: sidebarWidth }}
                 >
                     {/* Input Section giữ nguyên */}
                     <div className="p-4 border-b border-gray-100 bg-white">
                         {/* ... nội dung input ... */}
-                         <div className="flex justify-between items-center mb-4">
+                        <div className="flex justify-between items-center mb-4">
                             <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="text-gray-500 pl-0">
                                 <ArrowLeft className="h-4 w-4 mr-1" /> Trang chủ
                             </Button>
@@ -212,7 +211,7 @@ export default function MapSearchPage() {
                                 </Button>
                             )}
                         </div>
-                        
+
                         <h2 className="text-lg font-bold text-navy mb-4">Tìm đường trên bản đồ</h2>
 
                         <div className="space-y-3">
@@ -286,7 +285,7 @@ export default function MapSearchPage() {
                 </div>
 
                 {/* Resizer & Map giữ nguyên */}
-                <div 
+                <div
                     className="w-1.5 bg-gray-200 hover:bg-orange cursor-col-resize z-20 flex items-center justify-center transition-colors group"
                     onMouseDown={startResizing}
                 >
