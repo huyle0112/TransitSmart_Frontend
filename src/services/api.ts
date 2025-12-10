@@ -48,4 +48,20 @@ export const saveFavorite = (payload: any) =>
 export const removeFavorite = (routeId: string) =>
     unwrap(apiClient.delete('/user/favorites', { params: { id: routeId } }));
 
+// Stop endpoints
+export const getAllStops = () => unwrap(apiClient.get('/stop'));
+
+export const getStopById = (stopId: string) =>
+    unwrap(apiClient.get(`/stop/${stopId}`));
+
+export const getStopWithTimes = (stopId: string) =>
+    unwrap(apiClient.get(`/stop/${stopId}/times`));
+
+export const createStop = (payload: any) =>
+    unwrap(apiClient.post('/stop', payload));
+
+// Health check endpoint
+export const healthCheck = () =>
+    unwrap(apiClient.get('/health', { baseURL: API_BASE }));
+
 export default apiClient;

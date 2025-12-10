@@ -7,6 +7,7 @@ import RouteDetailPage from "./pages/RouteDetailPage";
 import { AuthProvider } from "./contexts/AuthContext";
 import ProfilePage from "./pages/ProfilePage";
 
+
 function App() {
     return (
         <AuthProvider>
