@@ -22,11 +22,19 @@ export default function NearbyStops() {
             const coords = await requestPosition();
             setLoading(true);
             const response = await getNearbyStops(coords) as any;
-            setStops(response.stops);
+
+            // Deduplicate stops by ID (just in case)
+            const uniqueStops: any[] = Array.from(
+                new Map(response.stops.map((stop: any) => [stop.id, stop])).values()
+            );
+
+            console.log('[DEBUG] API returned', response.stops.length, 'stops, unique:', uniqueStops.length);
+
+            setStops(uniqueStops);
             setOrigin(response.origin);
             setShowMap(true);
-            if (response.stops.length > 0) {
-                setSelectedStopId(response.stops[0].id);
+            if (uniqueStops.length > 0) {
+                setSelectedStopId(uniqueStops[0].id);
             }
         } catch (err: any) {
             setError(err.message || 'Không thể xác định vị trí của bạn lúc này.');
@@ -185,6 +193,11 @@ export default function NearbyStops() {
                                                                             >
                                                                                 {route.name}
                                                                             </span>
+                                                                            {route.destinationName && (
+                                                                                <span className="text-[10px] text-gray-500 font-medium truncate max-w-[120px]" title={`Đi ${route.destinationName}`}>
+                                                                                    → {route.destinationName}
+                                                                                </span>
+                                                                            )}
                                                                         </div>
                                                                         <div className="flex items-center gap-2 text-gray-600">
                                                                             {route.nextArrivals && route.nextArrivals.slice(0, 2).map((time: number, idx: number) => (
