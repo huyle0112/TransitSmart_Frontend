@@ -43,12 +43,20 @@ export default function StopSearchPage() {
             const coords = { lat, lng };
             console.log('Searching for stops near:', coords);
             const response = await getNearbyStops(coords) as any;
-            setStops(response.stops);
+
+            // Deduplicate stops by ID (just in case)
+            const uniqueStops = Array.from(
+                new Map(response.stops.map((stop: any) => [stop.id, stop])).values()
+            );
+
+            console.log('[DEBUG] API returned', response.stops.length, 'stops, unique:', uniqueStops.length);
+
+            setStops(uniqueStops);
             setOrigin(response.origin);
             setShowMap(true);
 
-            if (response.stops.length > 0) {
-                setSelectedStopId(response.stops[0].id);
+            if (uniqueStops.length > 0) {
+                setSelectedStopId(uniqueStops[0].id);
             }
         } catch (err: any) {
             setError(err.message || 'Không thể tìm điểm dừng gần vị trí này.');
@@ -102,7 +110,11 @@ export default function StopSearchPage() {
     return (
         <div className="min-h-screen bg-gray-50">
             {/* Floating Search Box (Google Maps Style) */}
-            <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-[60] w-full max-w-2xl px-4">
+            <div
+                className="fixed top-20 z-[60] w-full max-w-2xl px-4"
+                // shift a little to the left from perfect center
+                style={{ left: '30%', transform: 'translateX(calc(-50% - 12px))' }}
+            >
                 <div className="bg-white rounded-xl shadow-2xl border border-gray-200">
                     {/* Search Input Row */}
                     <div className="flex gap-2 items-center p-3">
@@ -233,6 +245,11 @@ export default function StopSearchPage() {
                                                                             >
                                                                                 {route.name}
                                                                             </span>
+                                                                            {route.destinationName && (
+                                                                                <span className="text-[10px] text-gray-500 font-medium truncate max-w-[120px]" title={`Đi ${route.destinationName}`}>
+                                                                                    → {route.destinationName}
+                                                                                </span>
+                                                                            )}
                                                                         </div>
                                                                         <div className="flex items-center gap-2 text-gray-600">
                                                                             {route.nextArrivals && route.nextArrivals.slice(0, 2).map((time: number, idx: number) => (

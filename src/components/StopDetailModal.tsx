@@ -1,4 +1,4 @@
-import { X, MapPin, Clock, Bus } from 'lucide-react';
+import { X, MapPin, Clock, Bus, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface StopDetailModalProps {
@@ -79,9 +79,14 @@ export default function StopDetailModal({ stop, onClose }: StopDetailModalProps)
                                                     <p className="font-semibold text-gray-900">
                                                         Tuyến {route.name}
                                                     </p>
-                                                    <p className="text-sm text-gray-500">
-                                                        Xe buýt Hà Nội
-                                                    </p>
+                                                    {route.destinationName && (
+                                                        <p className="text-sm text-gray-600 flex items-center gap-1 mt-0.5">
+                                                            <ArrowRight className="h-3.5 w-3.5" />
+                                                            <span className="font-medium">
+                                                                Đi {route.destinationName}
+                                                            </span>
+                                                        </p>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
