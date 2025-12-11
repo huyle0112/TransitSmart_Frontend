@@ -1,97 +1,284 @@
-import SearchForm from '@/components/SearchForm';
-import NearbyStops from '@/components/NearbyStops';
-import { useNavigate } from 'react-router-dom';
-import { MapPin, Navigation, Shield, Map } from 'lucide-react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import SimpleMapViewer from '@/components/SimpleMapViewer';
+import PlaceAutocomplete from '@/components/PlaceAutocomplete';
+import RouteSummaryCard from '@/components/RouteSummaryCard';
+import NearbyStops from '@/components/NearbyStops'; 
 import { Button } from '@/components/ui/button';
+import { findRoutes, saveFavorite } from '@/services/api';
+import { reverseGeocode } from '@/services/geocoding';
+import { useAuth } from '@/contexts/AuthContext';
+import { Search, MapPin, Loader2, Trash2 } from 'lucide-react';
 
-const FEATURE_CARDS = [
-    {
-        title: 'Tìm chuyến đi tối ưu',
-        description: 'So sánh nhanh lộ trình nhanh nhất, ít chuyển tuyến và chi phí tiết kiệm.',
-        icon: <Navigation className="h-6 w-6 text-white" />,
-        color: 'bg-blue-500'
-    },
-    {
-        title: 'Chi tiết từng bước',
-        description: 'Xem bản đồ, hướng dẫn di chuyển, trạng thái trễ/chậm theo thời gian thực.',
-        icon: <MapPin className="h-6 w-6 text-white" />,
-        color: 'bg-orange'
-    },
-    {
-        title: 'Lưu và đồng bộ',
-        description: 'Đăng nhập để lưu lộ trình yêu thích và đồng bộ giữa các thiết bị.',
-        icon: <Shield className="h-6 w-6 text-white" />,
-        color: 'bg-green-500'
-    },
-];
+// Key lưu trữ session
+const STORAGE_KEY = 'home-map-search-state';
+const MIN_WIDTH = 320;
+const MAX_WIDTH = 600;
 
 export default function HomePage() {
-    const navigate = useNavigate();
+    const { isAuthenticated } = useAuth();
 
-    const handleSearch = ({ from, to }: { from: any; to: any }) => {
-        navigate('/results', { state: { from, to } });
+    // --- State Initialization ---
+    const getSavedState = () => {
+        try {
+            const saved = sessionStorage.getItem(STORAGE_KEY);
+            return saved ? JSON.parse(saved) : {};
+        } catch (e) {
+            return {};
+        }
+    };
+    const savedState = getSavedState();
+
+    // --- State Layout & Data ---
+    const [sidebarWidth, setSidebarWidth] = useState(400);
+    const isResizing = useRef(false);
+    
+    const [fromPlace, setFromPlace] = useState<any>(savedState.from || null);
+    const [toPlace, setToPlace] = useState<any>(savedState.to || null);
+    const [activeField, setActiveField] = useState<'from' | 'to' | null>(null);
+    const [routes, setRoutes] = useState<any[]>(savedState.routes || []);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    // --- Effects ---
+    useEffect(() => {
+        const stateToSave = { from: fromPlace, to: toPlace, routes: routes };
+        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
+    }, [fromPlace, toPlace, routes]);
+
+    // --- Logic Resizing ---
+    const startResizing = useCallback(() => {
+        isResizing.current = true;
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', stopResizing);
+    }, []);
+
+    const handleMouseMove = useCallback((e: MouseEvent) => {
+        if (!isResizing.current) return;
+        let newWidth = e.clientX;
+        if (newWidth < MIN_WIDTH) newWidth = MIN_WIDTH;
+        if (newWidth > MAX_WIDTH) newWidth = MAX_WIDTH;
+        setSidebarWidth(newWidth);
+    }, []);
+
+    const stopResizing = useCallback(() => {
+        isResizing.current = false;
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', stopResizing);
+    }, [handleMouseMove]);
+
+    // --- Logic Map & Search ---
+    const handleMapClick = async (lat: number, lng: number) => {
+        if (!activeField) return;
+
+        try {
+            const tempPlace = { label: `${lat.toFixed(4)}, ${lng.toFixed(4)}`, coords: { lat, lng } };
+            if (activeField === 'from') setFromPlace(tempPlace);
+            else setToPlace(tempPlace);
+
+            const place = await reverseGeocode([lat, lng]);
+            const newPlace = {
+                label: place.shortName || place.name,
+                fullName: place.name,
+                coords: { lat, lng }
+            };
+
+            if (activeField === 'from') {
+                setFromPlace(newPlace);
+                setActiveField('to');
+            } else if (activeField === 'to') {
+                setToPlace(newPlace);
+                setActiveField(null);
+            }
+        } catch (err) {
+            console.error(err);
+        }
     };
 
+    const handleSearch = async () => {
+        if (!fromPlace?.coords || !toPlace?.coords) return;
+        setLoading(true);
+        setError(null);
+        setRoutes([]);
+
+        try {
+            const response = await findRoutes({
+                from: fromPlace.coords,
+                to: toPlace.coords,
+            }) as any;
+
+            if (response.walkingRoute) {
+                setRoutes([{
+                    id: 'walking',
+                    title: 'Đi bộ',
+                    from: response.from,
+                    to: response.to,
+                    segments: [{
+                        mode: 'walk',
+                        duration: response.walkingRoute.duration,
+                        from: response.from.id,
+                        to: response.to.id
+                    }],
+                    summary: {
+                        totalDuration: response.walkingRoute.duration,
+                        totalCost: 0,
+                        transfers: 0,
+                        startWalkTime: response.walkingRoute.duration
+                    },
+                    coordinates: [response.from, response.to]
+                }]);
+            } else {
+                setRoutes(response.routes);
+            }
+        } catch (err: any) {
+            setError(err?.response?.data?.message || 'Không tìm thấy lộ trình.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleClear = () => {
+        setFromPlace(null);
+        setToPlace(null);
+        setRoutes([]);
+        sessionStorage.removeItem(STORAGE_KEY);
+    };
+
+    const mapCoordinates = useMemo(() => {
+        const coords = [];
+        if (fromPlace?.coords) coords.push({ ...fromPlace, name: 'Điểm đi' });
+        if (toPlace?.coords) coords.push({ ...toPlace, name: 'Điểm đến' });
+        return coords;
+    }, [fromPlace, toPlace]);
+
+    const activeRoute = routes[0];
+
+    const getInputContainerClass = (field: 'from' | 'to') => {
+        const isActive = activeField === field;
+        return `relative p-2 rounded-lg border-2 transition-colors cursor-pointer ${
+            isActive ? 'border-orange bg-orange/5 ring-1 ring-orange' : 'border-transparent bg-gray-50 hover:bg-gray-100'
+        }`;
+    };
 
     return (
-        <div className="min-h-screen bg-gray-50/50">
-            {/* Hero Section */}
-            <section className="bg-navy text-white pt-16 pb-24 relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
-                    <div className="absolute right-0 top-0 w-96 h-96 bg-orange rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2"></div>
-                    <div className="absolute left-0 bottom-0 w-64 h-64 bg-blue-500 rounded-full blur-3xl transform -translate-x-1/2 translate-y-1/2"></div>
-                </div>
-
-                <div className="container mx-auto px-4 relative z-10">
-                    <div className="grid lg:grid-cols-2 gap-12 items-center">
-                        <div className="space-y-6">
-                            <p className="text-orange font-semibold tracking-wider uppercase text-sm">Lộ trình tàu & xe buýt giả lập</p>
-                            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight">
-                                Định tuyến dễ dàng, <br />
-                                <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange to-yellow-400">tối ưu từng hành trình.</span>
-                            </h1>
-                            <p className="text-lg text-gray-300 max-w-xl leading-relaxed">
-                                Ứng dụng giúp bạn tìm tuyến công cộng nhanh nhất, ít lần chuyển nhất hoặc tiết kiệm nhất dựa trên dữ liệu địa phương.
-                            </p>
+        <div className="flex flex-col min-h-screen">
+            {/* --- PHẦN 1: GIAO DIỆN BẢN ĐỒ & TÌM KIẾM  --- */}
+            <div className="flex h-[calc(100vh-64px)] relative border-b border-gray-200">
+                
+                {/* SIDEBAR TÌM KIẾM */}
+                <div 
+                    className="bg-white border-r border-gray-200 flex flex-col z-10 shadow-xl flex-shrink-0"
+                    style={{ width: sidebarWidth }}
+                >
+                    <div className="p-4 border-b border-gray-100 bg-white">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-lg font-bold text-navy">Tra cứu lộ trình</h2>
+                            {(fromPlace || toPlace) && (
+                                <Button variant="ghost" size="sm" onClick={handleClear} className="text-red-500 hover:text-red-600 hover:bg-red-50 h-8 px-2">
+                                    <Trash2 className="h-4 w-4 mr-1" /> Xóa
+                                </Button>
+                            )}
                         </div>
+                        
+                        <div className="space-y-3">
+                            <div className={getInputContainerClass('from')} onClick={() => setActiveField('from')}>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <div className="w-2 h-2 rounded-full bg-blue-600 shadow-sm"></div>
+                                    <span className={`text-xs font-bold ${activeField === 'from' ? 'text-orange' : 'text-gray-500'}`}>
+                                        Điểm đi {activeField === 'from' && '(Đang chọn...)'}
+                                    </span>
+                                </div>
+                                <PlaceAutocomplete
+                                    value={fromPlace}
+                                    onChange={setFromPlace}
+                                    placeholder="Nhập hoặc click bản đồ"
+                                    className="border-none shadow-none p-0 h-auto bg-transparent placeholder:text-gray-400 focus-visible:ring-0"
+                                />
+                            </div>
 
-                        <div className="w-full max-w-md mx-auto lg:ml-auto space-y-4">
-                            <SearchForm onSubmit={handleSearch} />
-                            
-                            {/* --- BẮT ĐẦU ĐOẠN CODE CẦN THÊM --- */}
-                            <Button 
-                                variant="outline" 
-                                className="w-full bg-white/10 hover:bg-white/20 text-white border-white/20 backdrop-blur-sm h-12 text-lg font-medium transition-all"
-                                onClick={() => navigate('/map')}
+                            <div className={getInputContainerClass('to')} onClick={() => setActiveField('to')}>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <div className="w-2 h-2 rounded-full bg-red-600 shadow-sm"></div>
+                                    <span className={`text-xs font-bold ${activeField === 'to' ? 'text-orange' : 'text-gray-500'}`}>
+                                        Điểm đến {activeField === 'to' && '(Đang chọn...)'}
+                                    </span>
+                                </div>
+                                <PlaceAutocomplete
+                                    value={toPlace}
+                                    onChange={setToPlace}
+                                    placeholder="Nhập hoặc click bản đồ"
+                                    className="border-none shadow-none p-0 h-auto bg-transparent placeholder:text-gray-400 focus-visible:ring-0"
+                                />
+                            </div>
+
+                            <Button
+                                onClick={handleSearch}
+                                disabled={loading || !fromPlace || !toPlace}
+                                className="w-full bg-navy hover:bg-navy/90 text-white mt-2"
                             >
-                                <Map className="mr-2 h-5 w-5" />
-                                Tìm trên bản đồ
+                                {loading ? <Loader2 className="animate-spin h-4 w-4" /> : <Search className="h-4 w-4 mr-2" />}
+                                Tìm lộ trình
                             </Button>
-                            {/* --- KẾT THÚC ĐOẠN CODE CẦN THÊM --- */}
                         </div>
                     </div>
-                </div>
-            </section>
 
-            {/* Features Grid */}
-            <section className="container mx-auto px-4 -mt-16 relative z-20 mb-16">
-                <div className="grid md:grid-cols-3 gap-6">
-                    {FEATURE_CARDS.map((card) => (
-                        <article key={card.title} className="bg-white p-6 rounded-xl shadow-lg border border-gray-100 hover:transform hover:-translate-y-1 transition-all duration-300">
-                            <div className={`w-12 h-12 rounded-lg ${card.color} flex items-center justify-center mb-4 shadow-md`}>
-                                {card.icon}
+                    <div className="flex-1 overflow-y-auto p-4 bg-gray-50/50">
+                        {error && <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm border border-red-100 mb-4">{error}</div>}
+                        
+                        <div className="space-y-4">
+                            {routes.map((route, idx) => (
+                                <RouteSummaryCard
+                                    key={idx}
+                                    route={route}
+                                    highlight={idx === 0}
+                                    onSaveFavorite={isAuthenticated ? (id) => saveFavorite({ routeId: id }) : undefined}
+                                />
+                            ))}
+                        </div>
+
+                        {!loading && routes.length === 0 && !error && (
+                            <div className="text-center text-gray-400 py-12 text-sm flex flex-col items-center">
+                                <MapPin className="h-10 w-10 mb-3 opacity-20" />
+                                <p>Chọn điểm đi và điểm đến trên bản đồ<br />để bắt đầu tìm kiếm.</p>
                             </div>
-                            <h3 className="text-xl font-bold text-navy mb-2">{card.title}</h3>
-                            <p className="text-gray-600 leading-relaxed">{card.description}</p>
-                        </article>
-                    ))}
+                        )}
+                    </div>
                 </div>
-            </section>
 
-            {/* Nearby Stops - Full Width */}
-            <section className="pb-16">
-                <NearbyStops />
-            </section>
+                {/* RESIZER */}
+                <div 
+                    className="w-1.5 bg-gray-200 hover:bg-orange cursor-col-resize z-20 flex items-center justify-center transition-colors group"
+                    onMouseDown={startResizing}
+                >
+                    <div className="h-8 w-1 rounded-full bg-gray-400 group-hover:bg-white/80"></div>
+                </div>
+
+                {/* MAP VIEW */}
+                <div className="flex-1 relative min-w-0 bg-gray-100">
+                    <SimpleMapViewer
+                        coordinates={mapCoordinates}
+                        geometries={activeRoute?.geometries}
+                        segments={activeRoute?.segments}
+                        onMapClick={handleMapClick}
+                    />
+                    {activeField && (
+                        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur px-4 py-2 rounded-full shadow-lg border border-orange z-[1000] text-sm font-medium text-orange flex items-center animate-bounce">
+                            <MapPin className="h-4 w-4 mr-2" />
+                            Đang chọn {activeField === 'from' ? 'Điểm đi' : 'Điểm đến'}... Click vào bản đồ
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* --- PHẦN 2: TÌM TRẠM GẦN ĐÂY --- */}
+            <div className="bg-white py-8">
+                <div className="container mx-auto px-4">
+                    <NearbyStops />
+                </div>
+            </div>
         </div>
     );
 }
