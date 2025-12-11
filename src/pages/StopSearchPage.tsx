@@ -55,8 +55,44 @@ export default function StopSearchPage() {
             setOrigin(response.origin);
             setShowMap(true);
 
+            // Auto-select first stop and fetch its walking route
             if (uniqueStops.length > 0) {
-                setSelectedStopId(uniqueStops[0].id);
+                const firstStopId = (uniqueStops[0] as any).id;
+                console.log('[StopSearch] Auto-selecting first stop:', firstStopId);
+                // Call handleStopClick for first stop - but we need to set origin first
+                // So we do it after a small delay or directly inline
+                setSelectedStopId(firstStopId);
+
+                // Fetch walking route for first stop
+                try {
+                    const url = `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/api/route/walking-route/${firstStopId}?originLat=${response.origin.lat}&originLng=${response.origin.lng}`;
+                    console.log('[StopSearch] Fetching initial walking route from:', url);
+
+                    const routeResponse = await fetch(url);
+                    console.log('[StopSearch] Initial route response status:', routeResponse.status);
+
+                    if (routeResponse.ok) {
+                        const routeData = await routeResponse.json();
+                        console.log('[StopSearch] Received initial walking route data:', routeData);
+
+                        setStops(prevStops =>
+                            prevStops.map(stop =>
+                                stop.id === firstStopId
+                                    ? {
+                                        ...stop,
+                                        walkingRoute: routeData.walkingRoute,
+                                        walkingDistance: routeData.walkingDistance,
+                                        walkingDuration: routeData.walkingDuration
+                                    }
+                                    : stop
+                            )
+                        );
+                    } else {
+                        console.error('[StopSearch] Failed to fetch initial walking route, status:', routeResponse.status);
+                    }
+                } catch (error) {
+                    console.error('[StopSearch] Failed to fetch initial walking route:', error);
+                }
             }
         } catch (err: any) {
             setError(err.message || 'Không thể tìm điểm dừng gần vị trí này.');
@@ -67,20 +103,24 @@ export default function StopSearchPage() {
     };
 
     const handleStopClick = async (stopId: string) => {
+        console.log('[StopSearch] handleStopClick called for stopId:', stopId);
         setSelectedStopId(stopId);
 
         // Fetch walking route on-demand
         if (origin && stopId) {
             try {
-                const response = await fetch(
-                    `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/api/route/walking-route/${stopId}?originLat=${origin.lat}&originLng=${origin.lng}`
-                );
+                const url = `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/api/route/walking-route/${stopId}?originLat=${origin.lat}&originLng=${origin.lng}`;
+                console.log('[StopSearch] Fetching walking route from:', url);
+
+                const response = await fetch(url);
+                console.log('[StopSearch] Response status:', response.status);
 
                 if (response.ok) {
                     const data = await response.json();
+                    console.log('[StopSearch] Received walking route data:', data);
 
-                    setStops(prevStops =>
-                        prevStops.map(stop =>
+                    setStops(prevStops => {
+                        const updated = prevStops.map(stop =>
                             stop.id === stopId
                                 ? {
                                     ...stop,
@@ -89,12 +129,18 @@ export default function StopSearchPage() {
                                     walkingDuration: data.walkingDuration
                                 }
                                 : stop
-                        )
-                    );
+                        );
+                        console.log('[StopSearch] Updated stops with walking route');
+                        return updated;
+                    });
+                } else {
+                    console.error('[StopSearch] Failed to fetch walking route, status:', response.status);
                 }
             } catch (error) {
-                console.error('Failed to fetch walking route:', error);
+                console.error('[StopSearch] Failed to fetch walking route:', error);
             }
+        } else {
+            console.warn('[StopSearch] Missing origin or stopId:', { origin, stopId });
         }
     };
 
