@@ -113,23 +113,23 @@ export default function SimpleMapViewer({ coordinates = [], geometries = [], seg
 
                     layersRef.current.push(polyline);
                 });
-            } else if (positions.length > 1) {
-                // Fallback: straight line
-                const polyline = L.polyline(positions, {
-                    color: '#1f8eed',
-                    weight: 6,
-                }).addTo(mapInstanceRef.current!);
-
-                layersRef.current.push(polyline);
-            }
+            } 
 
             // Add markers
-            coordinates.forEach((point) => {
+            coordinates.forEach((point, index) => { 
                 if (!point || !point.coords) return;
 
                 const marker = L.marker([point.coords.lat, point.coords.lng])
                     .addTo(mapInstanceRef.current!)
                     .bindPopup(`<strong>${point.name || 'Stop'}</strong><br/>${point.type || ''}`);
+
+                // If it is the destination (index === 1), use CSS filter to change color to red
+                if (index === 1) {
+                    const el = marker.getElement();
+                    if (el) {
+                        el.style.filter = 'hue-rotate(150deg)'; // Rotates blue to red
+                    }
+                }
 
                 layersRef.current.push(marker);
             });
