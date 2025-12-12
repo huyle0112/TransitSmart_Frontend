@@ -1,13 +1,13 @@
 import { useState } from 'react';
-import useGeolocation from '@/hooks/useGeolocation';
-import { getNearbyStops } from '@/services/api';
 import { Button } from '@/components/ui/button';
-import { MapPin, Map as MapIcon, Info } from 'lucide-react';
-import WalkingRouteMap from './WalkingRouteMap';
-import StopDetailModal from './StopDetailModal';
+import { MapPin, Search, Map as MapIcon, Info } from 'lucide-react';
+import PlaceAutocomplete from '@/components/PlaceAutocomplete';
+import WalkingRouteMap from '@/components/WalkingRouteMap';
+import StopDetailModal from '@/components/StopDetailModal';
+import { getNearbyStops } from '@/services/api';
 
-export default function NearbyStops() {
-    const { requestPosition, loading: geoLoading } = useGeolocation();
+export default function StopSearchPage() {
+    const [selectedPlace, setSelectedPlace] = useState<any>(null);
     const [stops, setStops] = useState<any[]>([]);
     const [origin, setOrigin] = useState<any>(null);
     const [loading, setLoading] = useState(false);
@@ -16,15 +16,36 @@ export default function NearbyStops() {
     const [detailStop, setDetailStop] = useState<any>(null);
     const [showMap, setShowMap] = useState(false);
 
-    const handleFindNearby = async () => {
+    const handlePlaceSelect = (place: any) => {
+        setSelectedPlace(place);
+        setError(null);
+    };
+
+    const handleSearch = async () => {
+        if (!selectedPlace || !selectedPlace.coords) {
+            setError('Vui lòng chọn địa điểm hợp lệ');
+            return;
+        }
+
         try {
             setError(null);
-            const coords = await requestPosition();
             setLoading(true);
+            // PlaceAutocomplete returns coords as object {lat, lng}
+            const { lat, lng } = selectedPlace.coords;
+
+            // Validate coordinates are valid numbers
+            if (typeof lat !== 'number' || typeof lng !== 'number' || isNaN(lat) || isNaN(lng)) {
+                setError('Tọa độ không hợp lệ');
+                setLoading(false);
+                return;
+            }
+
+            const coords = { lat, lng };
+            console.log('Searching for stops near:', coords);
             const response = await getNearbyStops(coords) as any;
 
             // Deduplicate stops by ID (just in case)
-            const uniqueStops: any[] = Array.from(
+            const uniqueStops = Array.from(
                 new Map(response.stops.map((stop: any) => [stop.id, stop])).values()
             );
 
@@ -33,11 +54,48 @@ export default function NearbyStops() {
             setStops(uniqueStops);
             setOrigin(response.origin);
             setShowMap(true);
+
+            // Auto-select first stop and fetch its walking route
             if (uniqueStops.length > 0) {
-                setSelectedStopId(uniqueStops[0].id);
+                const firstStopId = (uniqueStops[0] as any).id;
+                console.log('[StopSearch] Auto-selecting first stop:', firstStopId);
+                // Call handleStopClick for first stop - but we need to set origin first
+                // So we do it after a small delay or directly inline
+                setSelectedStopId(firstStopId);
+
+                // Fetch walking route for first stop
+                try {
+                    const url = `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/api/route/walking-route/${firstStopId}?originLat=${response.origin.lat}&originLng=${response.origin.lng}`;
+                    console.log('[StopSearch] Fetching initial walking route from:', url);
+
+                    const routeResponse = await fetch(url);
+                    console.log('[StopSearch] Initial route response status:', routeResponse.status);
+
+                    if (routeResponse.ok) {
+                        const routeData = await routeResponse.json();
+                        console.log('[StopSearch] Received initial walking route data:', routeData);
+
+                        setStops(prevStops =>
+                            prevStops.map(stop =>
+                                stop.id === firstStopId
+                                    ? {
+                                        ...stop,
+                                        walkingRoute: routeData.walkingRoute,
+                                        walkingDistance: routeData.walkingDistance,
+                                        walkingDuration: routeData.walkingDuration
+                                    }
+                                    : stop
+                            )
+                        );
+                    } else {
+                        console.error('[StopSearch] Failed to fetch initial walking route, status:', routeResponse.status);
+                    }
+                } catch (error) {
+                    console.error('[StopSearch] Failed to fetch initial walking route:', error);
+                }
             }
         } catch (err: any) {
-            setError(err.message || 'Không thể xác định vị trí của bạn lúc này.');
+            setError(err.message || 'Không thể tìm điểm dừng gần vị trí này.');
             setShowMap(false);
         } finally {
             setLoading(false);
@@ -45,21 +103,24 @@ export default function NearbyStops() {
     };
 
     const handleStopClick = async (stopId: string) => {
+        console.log('[StopSearch] handleStopClick called for stopId:', stopId);
         setSelectedStopId(stopId);
 
-        // Fetch walking route on-demand for this stop
+        // Fetch walking route on-demand
         if (origin && stopId) {
             try {
-                const response = await fetch(
-                    `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/api/route/walking-route/${stopId}?originLat=${origin.lat}&originLng=${origin.lng}`
-                );
+                const url = `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/api/route/walking-route/${stopId}?originLat=${origin.lat}&originLng=${origin.lng}`;
+                console.log('[StopSearch] Fetching walking route from:', url);
+
+                const response = await fetch(url);
+                console.log('[StopSearch] Response status:', response.status);
 
                 if (response.ok) {
                     const data = await response.json();
+                    console.log('[StopSearch] Received walking route data:', data);
 
-                    // Update the stop with walking route data
-                    setStops(prevStops =>
-                        prevStops.map(stop =>
+                    setStops(prevStops => {
+                        const updated = prevStops.map(stop =>
                             stop.id === stopId
                                 ? {
                                     ...stop,
@@ -68,13 +129,18 @@ export default function NearbyStops() {
                                     walkingDuration: data.walkingDuration
                                 }
                                 : stop
-                        )
-                    );
+                        );
+                        console.log('[StopSearch] Updated stops with walking route');
+                        return updated;
+                    });
+                } else {
+                    console.error('[StopSearch] Failed to fetch walking route, status:', response.status);
                 }
             } catch (error) {
-                console.error('Failed to fetch walking route:', error);
-                // Silently fail - map will still show stops without route
+                console.error('[StopSearch] Failed to fetch walking route:', error);
             }
+        } else {
+            console.warn('[StopSearch] Missing origin or stopId:', { origin, stopId });
         }
     };
 
@@ -88,52 +154,84 @@ export default function NearbyStops() {
     };
 
     return (
-        <section className="bg-white overflow-hidden">
-            <header className="border-b border-gray-200 bg-gray-50">
-                <div className="max-w-7xl mx-auto px-6 py-6 flex justify-between items-center">
-                    <div>
-                        <p className="text-xs font-semibold text-orange uppercase tracking-wider mb-1">Gợi ý gần bạn</p>
-                        <h3 className="text-lg font-bold text-navy">Trạm đi bộ tới được</h3>
-                        {stops.length > 0 && (
-                            <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
-                                <MapIcon className="h-3 w-3" />
-                                <span>Xanh dương: Vị trí bạn · Đỏ: Trạm · Xanh lá: Đã chọn</span>
-                            </p>
-                        )}
+        <div className="min-h-screen bg-gray-50">
+            {/* Floating Search Box (Google Maps Style) */}
+            <div
+                className="fixed top-20 z-[60] w-full max-w-2xl px-4"
+                // shift a little to the left from perfect center
+                style={{ left: '30%', transform: 'translateX(calc(-50% - 12px))' }}
+            >
+                <div className="bg-white rounded-xl shadow-2xl border border-gray-200">
+                    {/* Search Input Row */}
+                    <div className="flex gap-2 items-center p-3">
+                        <div className="flex-1">
+                            <PlaceAutocomplete
+                                value={selectedPlace}
+                                onChange={handlePlaceSelect}
+                                placeholder="Tìm trạm xe buýt gần địa điểm..."
+                            />
+                        </div>
+                        <Button
+                            onClick={handleSearch}
+                            disabled={!selectedPlace || loading}
+                            className="bg-navy hover:bg-navy/90 px-6"
+                            size="lg"
+                        >
+                            <Search className="h-5 w-5" />
+                        </Button>
                     </div>
-                    <Button
-                        variant="default"
-                        onClick={handleFindNearby}
-                        disabled={geoLoading || loading}
-                        className="bg-navy hover:bg-navy/90"
-                    >
-                        {geoLoading || loading ? 'Đang tìm...' : 'Tìm trạm gần đây'}
-                    </Button>
-                </div>
-            </header>
 
-            {/* Full Width Container - No Padding */}
-            <div>
-                {error && <p className="text-sm text-red-500 px-6 py-4">{error}</p>}
+                    {/* Error Message */}
+                    {error && (
+                        <div className="px-3 pb-3">
+                            <p className="text-sm text-red-500 bg-red-50 p-2 rounded">{error}</p>
+                        </div>
+                    )}
 
-                {/* Two Column Layout: Map Left (65%), List Right (35%) */}
-                {showMap && origin && stops.length > 0 ? (
-                    <div className="flex flex-col lg:flex-row min-h-[600px]">
-                        {/* Left Column: Map (65% width on desktop) */}
-                        <div className="w-full lg:w-[65%] flex-shrink-0 h-[400px] lg:h-[700px]">
-                            <div className="sticky top-0 h-full overflow-hidden">
-                                <WalkingRouteMap
-                                    origin={origin}
-                                    stops={stops}
-                                    selectedStopId={selectedStopId || undefined}
-                                    onStopSelect={handleStopClick}
-                                />
+                    {/* Selected Place Info */}
+                    {selectedPlace && (
+                        <div className="px-3 pb-3">
+                            <div className="p-2 bg-blue-50 rounded-lg border border-blue-200">
+                                <p className="text-sm text-blue-800 flex items-center gap-2">
+                                    <MapPin className="h-4 w-4" />
+                                    <span className="font-medium">{selectedPlace.label}</span>
+                                </p>
                             </div>
                         </div>
+                    )}
+                </div>
+            </div>
 
-                        {/* Right Column: Stops List (35% width, Scrollable) */}
-                        <div className="w-full lg:w-[35%] flex-shrink-0 lg:max-h-[700px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 hover:scrollbar-thumb-gray-400 bg-gray-50">
-                            <ul className="space-y-3 p-4">
+            {/* Results - Full Screen */}
+            {showMap && origin && stops.length > 0 ? (
+                <div className="flex flex-col lg:flex-row h-screen">
+                    {/* Left Column: Map (65% width) - Full Height */}
+                    <div className="w-full lg:w-[65%] flex-shrink-0 h-[400px] lg:h-full">
+                        <div className="sticky top-0 h-full overflow-hidden">
+                            <WalkingRouteMap
+                                origin={origin}
+                                stops={stops}
+                                selectedStopId={selectedStopId || undefined}
+                                onStopSelect={handleStopClick}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Right Column: Stops List (35% width, Scrollable) */}
+                    <div className="w-full lg:w-[35%] flex-shrink-0 h-full overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 hover:scrollbar-thumb-gray-400 bg-white">
+                            <div className="p-4 pt-32">
+                                {/* Add padding-top to avoid overlap with header + floating search */}
+                                <div className="mb-4">
+                                    <h2 className="text-lg font-bold text-navy mb-1">
+                                        Tìm thấy {stops.length} trạm gần đây
+                                    </h2>
+                                    <p className="text-xs text-gray-500 flex items-center gap-1">
+                                        <MapIcon className="h-3 w-3" />
+                                        <span>Xanh dương: Vị trí · Đỏ: Trạm · Xanh lá: Đã chọn</span>
+                                    </p>
+                                </div>
+
+                            <ul className="space-y-3">
                                 {stops.map((stop) => {
                                     const isSelected = stop.id === selectedStopId;
                                     return (
@@ -215,7 +313,7 @@ export default function NearbyStops() {
                                                         </div>
                                                     )}
 
-                                                    {/* Route Calculated Indicator */}
+                                                    {/* Route Indicator */}
                                                     {stop.walkingRoute && (
                                                         <p className="text-xs text-green-600 mt-2 flex items-center gap-1">
                                                             <MapIcon className="h-3 w-3" />
@@ -245,15 +343,21 @@ export default function NearbyStops() {
                             </ul>
                         </div>
                     </div>
-                ) : (
-                    /* No Results / Initial State */
-                    <div className="text-center text-gray-500 py-12 px-6">
-                        <MapPin className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                        <p className="font-medium">Tìm trạm xe buýt gần bạn</p>
-                        <p className="text-sm mt-1">Nhấn nút bên trên để xem các trạm đi bộ tới được (tối đa 1.5km)</p>
+                </div>
+            ) : !loading && !showMap && (
+                /* Empty State - Full Screen */
+                <div className="h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
+                    <div className="text-center px-6">
+                        <MapPin className="h-20 w-20 mx-auto mb-6 text-gray-300" />
+                        <h3 className="text-2xl font-bold text-gray-700 mb-3">
+                            Tra cứu điểm dừng
+                        </h3>
+                        <p className="text-gray-500 max-w-md mx-auto">
+                            Nhập địa điểm vào ô tìm kiếm phía trên để xem các trạm xe buýt gần đó
+                        </p>
                     </div>
-                )}
-            </div>
+                </div>
+            )}
 
             {/* Detail Modal */}
             {detailStop && (
@@ -262,7 +366,7 @@ export default function NearbyStops() {
                     onClose={handleCloseDetail}
                 />
             )}
-        </section>
+        </div>
     );
 }
 

@@ -12,6 +12,8 @@ import StopsPage from "./pages/StopsPage";
 import AdminUsersPage from "./pages/admin/AdminUsersPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
+import MapSearchPage from "./pages/MapSearchPage";
+import StopSearchPage from "./pages/StopSearchPage";
 
 function App() {
     return (
@@ -19,9 +21,11 @@ function App() {
             <Routes>
                 <Route element={<MainLayout />}>
                     <Route path="/" element={<HomePage />} />
+                    <Route path="/map" element={<MapSearchPage />} />
                     <Route path="/results" element={<SearchResultsPage />} />
                     <Route path="/lines" element={<BusLinesPage />} />
-                    <Route path="/stops" element={<StopsPage />} />
+                    <Route path="/stops" element={<StopSearchPage />} />
+                    <Route path="/stops/reviews" element={<StopsPage />} />
                     <Route path="/route/:routeId" element={<RouteDetailPage />} />
                     <Route path="/profile" element={<ProfilePage />} />
 

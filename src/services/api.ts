@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+const API_BASE = import.meta.env.VITE_API_URL;
 
 const apiClient = axios.create({
     baseURL: `${API_BASE}/api`,
@@ -57,6 +57,29 @@ export const deleteHistory = (id: string) => unwrap(apiClient.delete(`/user/hist
 // Aliases for older imports
 export const saveSearchHistory = addHistory;
 
+// Stop endpoints
+export const getAllStops = () => unwrap(apiClient.get('/stop'));
+
+export const getStopById = (stopId: string) =>
+    unwrap(apiClient.get(`/stop/${stopId}`));
+
+export const getStopWithTimes = (stopId: string) =>
+    unwrap(apiClient.get(`/stop/${stopId}/times`));
+
+export const createStop = (payload: any) =>
+    unwrap(apiClient.post('/stop', payload));
+
+// Stop endpoints
+export const getAllStops = () => unwrap(apiClient.get('/stop'));
+
+export const getStopById = (stopId: string) =>
+    unwrap(apiClient.get(`/stop/${stopId}`));
+
+export const getStopWithTimes = (stopId: string) =>
+    unwrap(apiClient.get(`/stop/${stopId}/times`));
+
+export const createStop = (payload: any) =>
+    unwrap(apiClient.post('/stop', payload));
 // Bus Routes API
 export const searchBusRoutes = (query: string) =>
     unwrap(apiClient.get('/bus-lines/search', { params: { q: query } }));
@@ -90,5 +113,9 @@ export const updateUserRole = (id: string, role: string) =>
 
 export const deleteUser = (id: string) => unwrap(apiClient.delete(`/admin/users/${id}`));
 export const deleteUserAdmin = deleteUser;
+
+// Health check endpoint
+export const healthCheck = () =>
+    unwrap(apiClient.get('/health', { baseURL: API_BASE }));
 
 export default apiClient;
