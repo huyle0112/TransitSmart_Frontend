@@ -2,14 +2,15 @@ import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Search, MapPin, Loader2, Trash2, Crosshair } from 'lucide-react';
 
 import SimpleMapViewer from '@/components/SimpleMapViewer';
+import BusRouteMapViewer from '@/components/BusRouteMapViewer';
 import PlaceAutocomplete from '@/components/PlaceAutocomplete';
-import RouteSummaryCard from '@/components/RouteSummaryCard';
+import EnhancedRouteCard from '@/components/EnhancedRouteCard';
 import { VideoHero } from '@/components/VideoHero';
 import { Button } from '@/components/ui/button';
 
-import { findRoutes, saveFavorite } from '@/services/api';
+import { findRoutes } from '@/services/api';
 import { reverseGeocode } from '@/services/geocoding';
-import { useAuth } from '@/contexts/AuthContext';
+// import { useAuth } from '@/contexts/AuthContext'; // Not used with mock data
 import useGeolocation from '@/hooks/useGeolocation';
 
 // Key lưu trữ session
@@ -18,7 +19,6 @@ const MIN_WIDTH = 320;
 const MAX_WIDTH = 600;
 
 export default function HomePage() {
-    const { isAuthenticated } = useAuth();
     const { requestPosition, loading: locating } = useGeolocation();
     
     // --- Refs ---
@@ -26,26 +26,259 @@ export default function HomePage() {
     const isResizing = useRef(false);
 
     // --- State Initialization ---
-    const getSavedState = () => {
-        try {
-            if (typeof window === 'undefined') return {};
-            const saved = sessionStorage.getItem(STORAGE_KEY);
-            return saved ? JSON.parse(saved) : {};
-        } catch (e) {
-            return {};
-        }
-    };
-    const savedState = getSavedState();
+    // Removed savedState as it's not being used with mock data
 
     // --- States ---
     const [sidebarWidth, setSidebarWidth] = useState(400);
     // State kiểm tra màn hình Desktop (để xử lý responsive logic trong JS nếu cần)
     const [isDesktop, setIsDesktop] = useState(true);
 
-    const [fromPlace, setFromPlace] = useState<any>(savedState.from || null);
-    const [toPlace, setToPlace] = useState<any>(savedState.to || null);
+    // Mock data - bypass search logic for testing
+    const mockRouteData = {
+        "from": {
+            "lat": 21.025097,
+            "lng": 105.780674,
+            "name": "Điểm xuất phát",
+            "coords": { "lat": 21.025097, "lng": 105.780674 }
+        },
+        "to": {
+            "lat": 20.991275,
+            "lng": 105.839416,
+            "name": "Điểm đến",
+            "coords": { "lat": 20.991275, "lng": 105.839416 }
+        },
+        "departure_time": "08:00:00",
+        "routes": [
+            {
+                "route_id": "21B_1_S27_dest_2_0",
+                "title": "Lộ trình nhanh nhất",
+                "from": { "name": "Điểm xuất phát" },
+                "to": { "name": "Điểm đến" },
+                "summary": "2 tuyến, 1 lần chuyển, tổng 3124",
+                "details": {
+                    "total_time_sec": 2640, // 44 minutes - fastest route
+                    "walking_time_sec": 291,
+                    "transit_time_sec": 2349,
+                    "transfers_count": 2
+                },
+                "segments": [
+                    {
+                        "lineId": "walk_start",
+                        "lineName": "Đi bộ",
+                        "mode": "walk",
+                        "duration_sec": 180,
+                        "duration_min": 3,
+                        "from_stop": "origin",
+                        "to_stop": "29_1_S23",
+                        "departure_time": "08:00:00",
+                        "arrival_time": "08:03:00",
+                        "trip_id": "walk_1",
+                        "fromStopName": "Điểm xuất phát",
+                        "fromStopLat": 21.025097,
+                        "fromStopLon": 105.780674,
+                        "toStopName": "Bến Đường cao tốc Vành đai 3",
+                        "toStopLat": 21.02315,
+                        "toStopLon": 105.778875
+                    },
+                    {
+                        "lineId": "29_1",
+                        "lineName": "29",
+                        "mode": "bus",
+                        "duration_sec": 252,
+                        "duration_min": 4,
+                        "from_stop": "29_1_S23",
+                        "to_stop": "29_1_S25",
+                        "departure_time": "08:01:05",
+                        "arrival_time": "08:05:17",
+                        "trip_id": "29_1_AM_5",
+                        "fromStopName": "Bến Đường cao tốc Vành đai 3",
+                        "fromStopLat": 21.02315,
+                        "fromStopLon": 105.778875,
+                        "toStopName": "Bến Đường Phạm Văn Đồng",
+                        "toStopLat": 21.034649,
+                        "toStopLon": 105.780275
+                    },
+                    {
+                        "lineId": "walk_transfer",
+                        "lineName": "Đi bộ",
+                        "mode": "walk",
+                        "duration_sec": 120,
+                        "duration_min": 2,
+                        "from_stop": "29_1_S25",
+                        "to_stop": "16_1_S3",
+                        "departure_time": "08:05:17",
+                        "arrival_time": "08:07:17",
+                        "trip_id": "walk_2",
+                        "fromStopName": "Bến Đường Phạm Văn Đồng",
+                        "fromStopLat": 21.034649,
+                        "fromStopLon": 105.780275,
+                        "toStopName": "Bến Đường Phạm Văn Đồng (Chuyển tuyến)",
+                        "toStopLat": 21.034649,
+                        "toStopLon": 105.780275
+                    },
+                    {
+                        "lineId": "16_1",
+                        "lineName": "16",
+                        "mode": "bus",
+                        "duration_sec": 2416,
+                        "duration_min": 40,
+                        "from_stop": "16_1_S3",
+                        "to_stop": "16_1_S19",
+                        "departure_time": "08:05:37",
+                        "arrival_time": "08:45:53",
+                        "trip_id": "16_1_AM_10",
+                        "fromStopName": "Bến Đường Phạm Văn Đồng",
+                        "fromStopLat": 21.034649,
+                        "fromStopLon": 105.780275,
+                        "toStopName": "Bến Đường Giải Phóng",
+                        "toStopLat": 20.98785,
+                        "toStopLon": 105.840791
+                    },
+                    {
+                        "lineId": "walk_end",
+                        "lineName": "Đi bộ",
+                        "mode": "walk",
+                        "duration_sec": 240,
+                        "duration_min": 4,
+                        "from_stop": "16_1_S19",
+                        "to_stop": "destination",
+                        "departure_time": "08:45:53",
+                        "arrival_time": "08:49:53",
+                        "trip_id": "walk_3",
+                        "fromStopName": "Bến Đường Giải Phóng",
+                        "fromStopLat": 20.98785,
+                        "fromStopLon": 105.840791,
+                        "toStopName": "Điểm đến",
+                        "toStopLat": 20.991275,
+                        "toStopLon": 105.839416
+                    }
+                ]
+            },
+            {
+                "route_id": "103_1_S2_dest_2_0",
+                "title": "Lộ trình thay thế",
+                "from": { "name": "Điểm xuất phát" },
+                "to": { "name": "Điểm đến" },
+                "summary": "2 tuyến, 1 lần chuyển, tổng 2940",
+                "details": {
+                    "total_time_sec": 2940, // 49 minutes - alternative route
+                    "walking_time_sec": 250,
+                    "transit_time_sec": 2690,
+                    "transfers_count": 2
+                },
+                "segments": [
+                    {
+                        "lineId": "21B_1",
+                        "lineName": "21B",
+                        "mode": "bus",
+                        "duration_sec": 113,
+                        "duration_min": 1,
+                        "from_stop": "21B_1_S27",
+                        "to_stop": "21B_1_S28",
+                        "departure_time": "08:00:30",
+                        "arrival_time": "08:02:23",
+                        "trip_id": "21B_1_AM_4",
+                        "fromStopName": "Bến Đường cao tốc Vành đai 3",
+                        "fromStopLat": 21.02315,
+                        "fromStopLon": 105.778875,
+                        "toStopName": "Bến Đường Phạm Hùng",
+                        "toStopLat": 21.027766,
+                        "toStopLon": 105.779302
+                    },
+                    {
+                        "lineId": "16_1",
+                        "lineName": "16",
+                        "mode": "bus",
+                        "duration_sec": 2601,
+                        "duration_min": 43,
+                        "from_stop": "16_1_S2",
+                        "to_stop": "16_1_S19",
+                        "departure_time": "08:02:32",
+                        "arrival_time": "08:45:53",
+                        "trip_id": "16_1_AM_10",
+                        "fromStopName": "Bến Đường Phạm Hùng",
+                        "fromStopLat": 21.027766,
+                        "fromStopLon": 105.779302,
+                        "toStopName": "Bến Đường Giải Phóng",
+                        "toStopLat": 20.98785,
+                        "toStopLon": 105.840791
+                    }
+                ]
+            },
+            {
+                "route_id": "16_1_S2_dest_1_0",
+                "title": "Lộ trình trực tiếp",
+                "from": { "name": "Điểm xuất phát" },
+                "to": { "name": "Điểm đến" },
+                "summary": "1 tuyến, 0 lần chuyển, tổng 3300",
+                "details": {
+                    "total_time_sec": 3300, // 55 minutes - direct route (slower but no transfers)
+                    "walking_time_sec": 241,
+                    "transit_time_sec": 3059,
+                    "transfers_count": 1
+                },
+                "segments": [
+                    {
+                        "lineId": "16_1",
+                        "lineName": "16",
+                        "mode": "bus",
+                        "duration_sec": 2601,
+                        "duration_min": 43,
+                        "from_stop": "16_1_S2",
+                        "to_stop": "16_1_S19",
+                        "departure_time": "08:02:32",
+                        "arrival_time": "08:45:53",
+                        "trip_id": "16_1_AM_10",
+                        "fromStopName": "Bến Đường Phạm Hùng",
+                        "fromStopLat": 21.027766,
+                        "fromStopLon": 105.779302,
+                        "toStopName": "Bến Đường Giải Phóng",
+                        "toStopLat": 20.98785,
+                        "toStopLon": 105.840791
+                    }
+                ]
+            },
+            {
+                "route_id": "21B_1_S27_dest_1_0",
+                "title": "Lộ trình dự phòng",
+                "from": { "name": "Điểm xuất phát" },
+                "to": { "name": "Điểm đến" },
+                "summary": "1 tuyến, 0 lần chuyển, tổng 3480",
+                "details": {
+                    "total_time_sec": 3480, // 58 minutes - backup route (slowest)
+                    "walking_time_sec": 291,
+                    "transit_time_sec": 3189,
+                    "transfers_count": 1
+                },
+                "segments": [
+                    {
+                        "lineId": "21B_2",
+                        "lineName": "21B",
+                        "mode": "bus",
+                        "duration_sec": 2667,
+                        "duration_min": 44,
+                        "from_stop": "21B_2_S2",
+                        "to_stop": "21B_2_S23",
+                        "departure_time": "08:02:06",
+                        "arrival_time": "08:46:33",
+                        "trip_id": "21B_2_AM_10",
+                        "fromStopName": "Bến Đường Phạm Hùng",
+                        "fromStopLat": 21.023566,
+                        "fromStopLon": 105.778292,
+                        "toStopName": "Bến Đường Giải Phóng",
+                        "toStopLat": 20.98785,
+                        "toStopLon": 105.840791
+                    }
+                ]
+            }
+        ]
+    };
+
+    const [fromPlace, setFromPlace] = useState<any>(mockRouteData.from);
+    const [toPlace, setToPlace] = useState<any>(mockRouteData.to);
     const [activeField, setActiveField] = useState<'from' | 'to' | null>(null);
-    const [routes, setRoutes] = useState<any[]>(savedState.routes || []);
+    const [routes, setRoutes] = useState<any[]>(mockRouteData.routes);
+    const [selectedRouteId, setSelectedRouteId] = useState<string>(mockRouteData.routes[0]?.route_id || '');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [resetKey, setResetKey] = useState(0);
@@ -214,7 +447,7 @@ export default function HomePage() {
         return coords;
     }, [fromPlace, toPlace]);
 
-    const activeRoute = routes[0];
+    const activeRoute = routes.find(r => r.route_id === selectedRouteId) || routes[0];
 
     // Helper tạo class chung cho các ô input
     const getContainerClass = (field: 'from' | 'to') => {
@@ -321,25 +554,27 @@ export default function HomePage() {
                         </div>
                     </div>
 
-                    {/* Danh sách kết quả */}
-                    <div className="flex-1 overflow-y-auto p-4 bg-gray-50/50 min-h-[200px]">
-                        {error && <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm border border-red-100 mb-4">{error}</div>}
+                    {/* Danh sách kết quả - Fixed height with scrolling */}
+                    <div className="flex-1 overflow-y-auto p-6 bg-gradient-to-b from-gray-50/30 to-gray-50/60 h-[calc(100vh-280px)]">
+                        {error && <div className="p-4 bg-red-50 text-red-600 rounded-xl text-sm border border-red-100/50 mb-6 shadow-sm">{error}</div>}
                         
-                        <div className="space-y-4">
-                            {routes.map((route, idx) => (
-                                <RouteSummaryCard
-                                    key={idx}
+                        <div className="space-y-6">
+                            {routes.map((route) => (
+                                <EnhancedRouteCard
+                                    key={route.route_id}
                                     route={route}
-                                    highlight={idx === 0}
-                                    onSaveFavorite={isAuthenticated ? (id) => saveFavorite({ routeId: id }) : undefined}
+                                    isSelected={selectedRouteId === route.route_id}
+                                    onClick={() => setSelectedRouteId(route.route_id)}
+                                    originCoords={fromPlace?.coords}
+                                    destinationCoords={toPlace?.coords}
                                 />
                             ))}
                         </div>
 
                         {!loading && routes.length === 0 && !error && (
-                            <div className="text-center text-gray-400 py-12 text-sm flex flex-col items-center">
-                                <MapPin className="h-10 w-10 mb-3 opacity-20" />
-                                <p>Chọn điểm đi và điểm đến trên bản đồ<br />để bắt đầu tìm kiếm.</p>
+                            <div className="text-center text-gray-400 py-16 text-sm flex flex-col items-center">
+                                <MapPin className="h-12 w-12 mb-4 opacity-30" />
+                                <p className="leading-relaxed">Chọn điểm đi và điểm đến trên bản đồ<br />để bắt đầu tìm kiếm.</p>
                             </div>
                         )}
                     </div>
@@ -358,12 +593,21 @@ export default function HomePage() {
                 <div className="relative min-w-0 bg-gray-100 order-1 md:order-3 w-full h-[50vh] md:h-auto md:flex-1">
                     {/* Wrapper w-full h-full để map chiếm trọn vẹn div cha */}
                     <div className="w-full h-full">
+                        {activeRoute?.segments ? (
+                            <BusRouteMapViewer
+                                segments={activeRoute.segments}
+                                originCoords={fromPlace?.coords}
+                                destinationCoords={toPlace?.coords}
+                                onMapClick={handleMapClick}
+                            />
+                        ) : (
                         <SimpleMapViewer
                             coordinates={mapCoordinates}
                             geometries={activeRoute?.geometries}
                             segments={activeRoute?.segments}
                             onMapClick={handleMapClick}
                         />
+                        )}
                     </div>
                     
                     {/* Thông báo Floating khi đang chọn điểm */}
