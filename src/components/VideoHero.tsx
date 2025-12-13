@@ -17,7 +17,7 @@ export const VideoHero = ({ onStartClick }: VideoHeroProps) => {
         playsInline
         className="absolute top-0 left-0 w-full h-full object-cover opacity-90"
       >
-        <source src="/public/videos/intro.mp4" type="video/mp4" />
+        <source src="/videos/intro.mp4" type="video/mp4" />
         Trình duyệt của bạn không hỗ trợ thẻ video.
       </video>
 
