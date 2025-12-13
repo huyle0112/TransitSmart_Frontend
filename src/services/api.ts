@@ -69,17 +69,6 @@ export const getStopWithTimes = (stopId: string) =>
 export const createStop = (payload: any) =>
     unwrap(apiClient.post('/stop', payload));
 
-// Stop endpoints
-export const getAllStops = () => unwrap(apiClient.get('/stop'));
-
-export const getStopById = (stopId: string) =>
-    unwrap(apiClient.get(`/stop/${stopId}`));
-
-export const getStopWithTimes = (stopId: string) =>
-    unwrap(apiClient.get(`/stop/${stopId}/times`));
-
-export const createStop = (payload: any) =>
-    unwrap(apiClient.post('/stop', payload));
 // Bus Routes API
 export const searchBusRoutes = (query: string) =>
     unwrap(apiClient.get('/bus-lines/search', { params: { q: query } }));

@@ -19,7 +19,7 @@ export default function StopsPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <NearbyStops onSelectStop={({ stop }) => setSelectedStop(stop)} />
+        <NearbyStops onSelectStop={setSelectedStop} />
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 h-fit">
           {!selectedStop ? (

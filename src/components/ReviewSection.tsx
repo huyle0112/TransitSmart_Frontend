@@ -11,7 +11,7 @@ interface ReviewSectionProps {
 }
 
 export default function ReviewSection({ targetType, targetId, title }: ReviewSectionProps) {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, isAdmin } = useAuth();
   const [reviews, setReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({ rating: 5, comment: '' });
@@ -108,7 +108,7 @@ export default function ReviewSection({ targetType, targetId, title }: ReviewSec
                   </div>
                   <p className="text-xs text-gray-500">{review.user?.email}</p>
                 </div>
-                {isAuthenticated && (user?.id === review.user?.id || user?.isAdmin) && (
+                {isAuthenticated && (user?.id === review.user?.id || isAdmin) && (
                   <Button
                     variant="ghost"
                     size="icon"
