@@ -10,7 +10,7 @@ import markerIcon from 'leaflet/dist/images/marker-icon.png';
 // @ts-ignore
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 
-// Fix default marker icons
+// Fix default marker icons logic
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
     iconRetinaUrl: markerIcon2x,
@@ -25,12 +25,19 @@ interface SimpleMapViewerProps {
     geometries?: any[];
     segments?: any[];
     onMapClick?: (lat: number, lng: number) => void;
+    className?: string; // Thêm prop này để nhận class từ cha
 }
 
 /**
  * Simple MapViewer using vanilla Leaflet to avoid React-Leaflet re-render issues
  */
-export default function SimpleMapViewer({ coordinates = [], geometries = [], segments = [], onMapClick }: SimpleMapViewerProps) {
+export default function SimpleMapViewer({ 
+    coordinates = [], 
+    geometries = [], 
+    segments = [], 
+    onMapClick,
+    className 
+}: SimpleMapViewerProps) {
     const mapRef = useRef<HTMLDivElement>(null);
     const mapInstanceRef = useRef<L.Map | null>(null);
     const layersRef = useRef<L.Layer[]>([]);
@@ -176,7 +183,7 @@ export default function SimpleMapViewer({ coordinates = [], geometries = [], seg
 
         map.on('click', handleMapClick);
 
-        // Cleanup: Gỡ bỏ sự kiện khi onMapClick thay đổi hoặc component unmount
+        // Cleanup
         return () => {
             map.off('click', handleMapClick);
         };
@@ -185,10 +192,9 @@ export default function SimpleMapViewer({ coordinates = [], geometries = [], seg
     return (
         <div
             ref={mapRef}
+            className={`w-full h-full relative ${className || ''}`}
             style={{
-                width: '100%',
-                height: '100%',
-                minHeight: '400px',
+                // Đã xóa minHeight: '400px' ở đây để nhận chiều cao từ cha
                 borderRadius: '12px',
                 overflow: 'hidden'
             }}
