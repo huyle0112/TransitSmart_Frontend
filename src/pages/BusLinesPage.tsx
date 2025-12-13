@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import BusRouteSearch from '@/components/BusRouteSearch';
 import BusRouteDetail from '@/components/BusRouteDetail';
+import TransitTips from '@/components/TransitTips';
+import ReviewSection from '@/components/ReviewSection';
 import { BusFront } from 'lucide-react';
 
 export default function BusLinesPage() {
@@ -19,17 +21,29 @@ export default function BusLinesPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        <div className="lg:col-span-4 space-y-6">
+        <div className="lg:col-span-4 space-y-6 lg:sticky lg:top-4 self-start h-fit">
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
             <h2 className="text-lg font-semibold text-navy mb-4">Tìm kiếm tuyến</h2>
             <BusRouteSearch onSelect={setSelectedRoute} />
           </div>
 
-          <div className="bg-blue-50 p-6 rounded-xl border border-blue-100">
-            <h3 className="font-semibold text-navy mb-2">Thông tin hỗ trợ</h3>
-            <p className="text-sm text-gray-600 mb-1">Tổng đài: <span className="font-medium text-orange">1900 1234</span></p>
-            <p className="text-sm text-gray-600">Email: <span className="font-medium text-navy">hotro@transitsmart.vn</span></p>
-          </div>
+          {selectedRoute && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="p-4 bg-orange/5 border-b border-gray-100">
+                <h3 className="font-semibold text-navy">Đánh giá tuyến</h3>
+                <p className="text-xs text-gray-500">{selectedRoute.name}</p>
+              </div>
+              <div className="p-4">
+                <ReviewSection
+                  targetType="route"
+                  targetId={selectedRoute.name}
+                  title=""
+                />
+              </div>
+            </div>
+          )}
+
+          <TransitTips />
         </div>
 
         <div className="lg:col-span-8">
