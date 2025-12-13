@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { MapPin, Search, Map as MapIcon, Info } from 'lucide-react';
+import { MapPin, Search, Map as MapIcon, Info, Navigation } from 'lucide-react';
 import PlaceAutocomplete from '@/components/PlaceAutocomplete';
 import WalkingRouteMap from '@/components/WalkingRouteMap';
 import StopDetailModal from '@/components/StopDetailModal';
 import { getNearbyStops } from '@/services/api';
+import useGeolocation from '@/hooks/useGeolocation';
 
 export default function StopSearchPage() {
+    const { requestPosition, loading: geoLoading } = useGeolocation();
     const [selectedPlace, setSelectedPlace] = useState<any>(null);
     const [stops, setStops] = useState<any[]>([]);
     const [origin, setOrigin] = useState<any>(null);
@@ -15,10 +17,68 @@ export default function StopSearchPage() {
     const [selectedStopId, setSelectedStopId] = useState<string | null>(null);
     const [detailStop, setDetailStop] = useState<any>(null);
     const [showMap, setShowMap] = useState(false);
+    const [hasSearched, setHasSearched] = useState(false);
 
     const handlePlaceSelect = (place: any) => {
         setSelectedPlace(place);
         setError(null);
+    };
+
+    const handleFindNearby = async () => {
+        try {
+            setError(null);
+            const coords = await requestPosition();
+            setLoading(true);
+            const response = await getNearbyStops(coords) as any;
+
+            // Deduplicate stops by ID
+            const uniqueStops = Array.from(
+                new Map(response.stops.map((stop: any) => [stop.id, stop])).values()
+            );
+
+            console.log('[StopSearch] Found', uniqueStops.length, 'nearby stops');
+
+            setStops(uniqueStops);
+            setOrigin(response.origin);
+            setShowMap(true);
+            setHasSearched(true);
+            setSelectedPlace(null); // Clear place selection
+
+            // Auto-select first stop and fetch its walking route
+            if (uniqueStops.length > 0) {
+                const firstStopId = (uniqueStops[0] as any).id;
+                setSelectedStopId(firstStopId);
+
+                // Fetch walking route for first stop
+                try {
+                    const url = `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/api/route/walking-route/${firstStopId}?originLat=${response.origin.lat}&originLng=${response.origin.lng}`;
+                    const routeResponse = await fetch(url);
+
+                    if (routeResponse.ok) {
+                        const routeData = await routeResponse.json();
+                        setStops(prevStops =>
+                            prevStops.map(stop =>
+                                stop.id === firstStopId
+                                    ? {
+                                        ...stop,
+                                        walkingRoute: routeData.walkingRoute,
+                                        walkingDistance: routeData.walkingDistance,
+                                        walkingDuration: routeData.walkingDuration
+                                    }
+                                    : stop
+                            )
+                        );
+                    }
+                } catch (error) {
+                    console.error('[StopSearch] Failed to fetch initial walking route:', error);
+                }
+            }
+        } catch (err: any) {
+            setError(err.message || 'Không thể xác định vị trí của bạn lúc này.');
+            setShowMap(false);
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleSearch = async () => {
@@ -54,6 +114,7 @@ export default function StopSearchPage() {
             setStops(uniqueStops);
             setOrigin(response.origin);
             setShowMap(true);
+            setHasSearched(true);
 
             // Auto-select first stop and fetch its walking route
             if (uniqueStops.length > 0) {
@@ -157,9 +218,11 @@ export default function StopSearchPage() {
         <div className="min-h-screen bg-gray-50">
             {/* Floating Search Box (Google Maps Style) */}
             <div
-                className="fixed top-20 z-[60] w-full max-w-2xl px-4"
-                // shift a little to the left from perfect center
-                style={{ left: '30%', transform: 'translateX(calc(-50% - 12px))' }}
+                className={`fixed top-20 z-[60] w-full max-w-2xl px-4 transition-all duration-500 ease-in-out ${
+                    hasSearched 
+                        ? 'left-[30%] transform -translate-x-[calc(50%+12px)]' 
+                        : 'left-1/2 transform -translate-x-1/2'
+                }`}
             >
                 <div className="bg-white rounded-xl shadow-2xl border border-gray-200">
                     {/* Search Input Row */}
@@ -199,6 +262,24 @@ export default function StopSearchPage() {
                             </div>
                         </div>
                     )}
+
+                    {/* Find Nearby Button - Only show when no search has been performed */}
+                    {!hasSearched && (
+                        <div className="px-3 pb-3 border-t border-gray-200 pt-3">
+                            <Button
+                                onClick={handleFindNearby}
+                                disabled={geoLoading || loading}
+                                className="w-full bg-green-600 hover:bg-green-700 text-white"
+                                size="lg"
+                            >
+                                <Navigation className="h-5 w-5 mr-2" />
+                                {geoLoading || loading ? 'Đang tìm...' : 'Tìm điểm dừng gần bạn'}
+                            </Button>
+                            <p className="text-xs text-gray-500 text-center mt-2">
+                                Sử dụng vị trí hiện tại của bạn để tìm trạm gần nhất
+                            </p>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -219,8 +300,22 @@ export default function StopSearchPage() {
 
                     {/* Right Column: Stops List (35% width, Scrollable) */}
                     <div className="w-full lg:w-[35%] flex-shrink-0 h-full overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 hover:scrollbar-thumb-gray-400 bg-white">
-                            <div className="p-4 pt-32">
+                            <div className="p-4 pt-05">
                                 {/* Add padding-top to avoid overlap with header + floating search */}
+
+                                {/* Find Nearby Button - Shows in results area */}
+                                <div className="mb-4">
+                                    <Button
+                                        onClick={handleFindNearby}
+                                        disabled={geoLoading || loading}
+                                        className="w-full bg-green-600 hover:bg-green-700 text-white mb-3"
+                                        size="lg"
+                                    >
+                                        <Navigation className="h-5 w-5 mr-2" />
+                                        {geoLoading || loading ? 'Đang tìm...' : 'Tìm điểm dừng gần bạn'}
+                                    </Button>
+                                </div>
+
                                 <div className="mb-4">
                                     <h2 className="text-lg font-bold text-navy mb-1">
                                         Tìm thấy {stops.length} trạm gần đây
