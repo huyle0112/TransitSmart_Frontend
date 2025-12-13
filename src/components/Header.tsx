@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 
 const Header = () => {
-    const { user, logout } = useAuth();
+    const { user, logout, isAdmin } = useAuth();
 
     const navLinks = [
         { to: "/", label: "Tìm lộ trình" },
@@ -46,11 +46,19 @@ const Header = () => {
                 </nav>
 
                 <div className="flex items-center gap-4">
-
-
                     {user ? (
                         <div className="flex items-center gap-3">
-                            <span className="text-sm text-gray-300 hidden sm:inline">Chào, {user.name}</span>
+                            <Link to="/profile" className="text-sm text-gray-300 hover:text-white hidden sm:inline-flex items-center gap-2">
+                                <span>Xin chào, {user.name || user.email}</span>
+                                {isAdmin && <span className="text-[10px] px-2 py-1 rounded-full border border-white/30 uppercase">Admin</span>}
+                            </Link>
+                            {isAdmin && (
+                                <Link to="/admin/users" className="hidden md:inline-block">
+                                    <Button variant="outline" size="sm" className="text-white border-white/20 hover:bg-white/10">
+                                        Quản trị
+                                    </Button>
+                                </Link>
+                            )}
                             <Button
                                 variant="ghost"
                                 onClick={handleLogout}

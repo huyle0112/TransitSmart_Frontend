@@ -6,7 +6,11 @@ import { MapPin, Map as MapIcon, Info } from 'lucide-react';
 import WalkingRouteMap from './WalkingRouteMap';
 import StopDetailModal from './StopDetailModal';
 
-export default function NearbyStops() {
+interface NearbyStopsProps {
+    onSelectStop?: (stop: any) => void;
+}
+
+export default function NearbyStops({ onSelectStop }: NearbyStopsProps) {
     const { requestPosition, loading: geoLoading } = useGeolocation();
     const [stops, setStops] = useState<any[]>([]);
     const [origin, setOrigin] = useState<any>(null);
@@ -35,6 +39,7 @@ export default function NearbyStops() {
             setShowMap(true);
             if (uniqueStops.length > 0) {
                 setSelectedStopId(uniqueStops[0].id);
+                onSelectStop?.(uniqueStops[0]);
             }
         } catch (err: any) {
             setError(err.message || 'Không thể xác định vị trí của bạn lúc này.');
@@ -50,6 +55,11 @@ export default function NearbyStops() {
         // Fetch walking route on-demand for this stop
         if (origin && stopId) {
             try {
+                const selected = stops.find(s => s.id === stopId);
+                if (selected) {
+                    onSelectStop?.(selected);
+                }
+
                 const response = await fetch(
                     `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/api/route/walking-route/${stopId}?originLat=${origin.lat}&originLng=${origin.lng}`
                 );
@@ -265,4 +275,3 @@ export default function NearbyStops() {
         </section>
     );
 }
-
