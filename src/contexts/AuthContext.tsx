@@ -74,7 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, [authState]);
 
     const login = useCallback(async (credentials: any) => {
-        const { email, password } = credentials;
+        const { email } = credentials;
 
         // Validate email format (all users must have @)
         if (!email.includes('@')) {

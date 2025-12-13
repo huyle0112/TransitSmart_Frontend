@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Users, MapPin, Route, MessageSquare, TrendingUp, Activity } from 'lucide-react';
+import { Users, MapPin, Route, MessageSquare, Activity } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { getAdminStats } from '@/services/api';
 
@@ -18,7 +18,6 @@ export default function AdminDashboardPage() {
         totalReviews: 0,
     });
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchStats = async () => {
@@ -28,7 +27,6 @@ export default function AdminDashboardPage() {
                 setStats(data);
             } catch (err: any) {
                 console.error('Failed to fetch stats:', err);
-                setError('Không thể tải thống kê');
             } finally {
                 setLoading(false);
             }
