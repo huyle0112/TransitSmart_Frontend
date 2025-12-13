@@ -17,7 +17,7 @@ export const VideoHero = ({ onStartClick }: VideoHeroProps) => {
         playsInline
         className="absolute top-0 left-0 w-full h-full object-cover opacity-90"
       >
-        <source src="src/components/videos/intro.mp4" type="video/mp4" />
+        <source src="asset/videos/intro.mp4" type="video/mp4" />
         Trình duyệt của bạn không hỗ trợ thẻ video.
       </video>
 
@@ -44,7 +44,7 @@ export const VideoHero = ({ onStartClick }: VideoHeroProps) => {
             transition={{ duration: 0.8, delay: 0.2 }}
             className="text-lg md:text-2xl text-gray-200 mb-12 max-w-2xl font-light leading-snug drop-shadow-md"
         >
-          Xe bus đã có TransitSmart chỉ đường <br className='hidden sm:inline'/>Vì sao em còn chưa bus cho anh
+          Dữ liệu thời gian thực. Lộ trình tối ưu. <br className='hidden sm:inline'/>Kết nối giao thông công cộng.
         </motion.p>
         
         {/* Nút bấm */}
