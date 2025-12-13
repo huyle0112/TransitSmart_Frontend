@@ -1,13 +1,16 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { Search, MapPin, Loader2, Trash2, Crosshair } from 'lucide-react';
+
 import SimpleMapViewer from '@/components/SimpleMapViewer';
 import PlaceAutocomplete from '@/components/PlaceAutocomplete';
 import RouteSummaryCard from '@/components/RouteSummaryCard';
-import NearbyStops from '@/components/NearbyStops'; 
+import { VideoHero } from '@/components/VideoHero';
 import { Button } from '@/components/ui/button';
+
 import { findRoutes, saveFavorite } from '@/services/api';
 import { reverseGeocode } from '@/services/geocoding';
 import { useAuth } from '@/contexts/AuthContext';
-import { Search, MapPin, Loader2, Trash2 } from 'lucide-react';
+import useGeolocation from '@/hooks/useGeolocation';
 
 // Key lưu trữ session
 const STORAGE_KEY = 'home-map-search-state';
@@ -16,6 +19,11 @@ const MAX_WIDTH = 600;
 
 export default function HomePage() {
     const { isAuthenticated } = useAuth();
+    const { requestPosition, loading: locating } = useGeolocation();
+    
+    // --- Refs ---
+    const mainContentRef = useRef<HTMLDivElement>(null);
+    const isResizing = useRef(false);
 
     // --- State Initialization ---
     const getSavedState = () => {
@@ -28,16 +36,15 @@ export default function HomePage() {
     };
     const savedState = getSavedState();
 
-    // --- State Layout & Data ---
+    // --- States ---
     const [sidebarWidth, setSidebarWidth] = useState(400);
-    const isResizing = useRef(false);
-    
     const [fromPlace, setFromPlace] = useState<any>(savedState.from || null);
     const [toPlace, setToPlace] = useState<any>(savedState.to || null);
     const [activeField, setActiveField] = useState<'from' | 'to' | null>(null);
     const [routes, setRoutes] = useState<any[]>(savedState.routes || []);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [resetKey, setResetKey] = useState(0);
 
     // --- Effects ---
     useEffect(() => {
@@ -45,7 +52,13 @@ export default function HomePage() {
         sessionStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
     }, [fromPlace, toPlace, routes]);
 
-    // --- Logic Resizing ---
+    // --- Handlers ---
+    const handleScrollDown = () => {
+        if (mainContentRef.current) {
+            mainContentRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    };
+
     const startResizing = useCallback(() => {
         isResizing.current = true;
         document.body.style.cursor = 'col-resize';
@@ -70,7 +83,34 @@ export default function HomePage() {
         document.removeEventListener('mouseup', stopResizing);
     }, [handleMouseMove]);
 
-    // --- Logic Map & Search ---
+    // --- Logic Lấy vị trí hiện tại ---
+    const handleUseCurrentLocation = async () => {
+        try {
+            const coords = await requestPosition();
+            
+            let newPlace = {
+                label: 'Vị trí của bạn',
+                fullName: 'Đang xác định địa chỉ...',
+                coords: coords
+            };
+            setFromPlace(newPlace);
+
+            try {
+                const placeInfo = await reverseGeocode([coords.lat, coords.lng]);
+                newPlace = {
+                    label: placeInfo.shortName || 'Vị trí của bạn',
+                    fullName: placeInfo.name,
+                    coords: coords
+                };
+                setFromPlace(newPlace);
+            } catch (err) {
+                console.warn('Reverse geocode failed');
+            }
+        } catch (err: any) {
+            setError(err.message || 'Không thể lấy vị trí hiện tại.');
+        }
+    };
+
     const handleMapClick = async (lat: number, lng: number) => {
         if (!activeField) return;
 
@@ -133,6 +173,7 @@ export default function HomePage() {
             } else {
                 setRoutes(response.routes);
             }
+            handleScrollDown();
         } catch (err: any) {
             setError(err?.response?.data?.message || 'Không tìm thấy lộ trình.');
         } finally {
@@ -144,9 +185,12 @@ export default function HomePage() {
         setFromPlace(null);
         setToPlace(null);
         setRoutes([]);
+        setError(null);
         sessionStorage.removeItem(STORAGE_KEY);
+        setResetKey(prev => prev + 1);
     };
 
+    // --- Helpers ---
     const mapCoordinates = useMemo(() => {
         const coords = [];
         if (fromPlace?.coords) coords.push({ ...fromPlace, name: 'Điểm đi' });
@@ -156,18 +200,25 @@ export default function HomePage() {
 
     const activeRoute = routes[0];
 
-    const getInputContainerClass = (field: 'from' | 'to') => {
+    // Helper class chung cho cả container 'from' và 'to' để đồng bộ giao diện
+    const getContainerClass = (field: 'from' | 'to') => {
         const isActive = activeField === field;
-        return `relative p-2 rounded-lg border-2 transition-colors cursor-pointer ${
+        return `flex items-center rounded-lg border-2 transition-colors relative ${
             isActive ? 'border-orange bg-orange/5 ring-1 ring-orange' : 'border-transparent bg-gray-50 hover:bg-gray-100'
         }`;
     };
 
     return (
         <div className="flex flex-col min-h-screen">
-            {/* --- PHẦN 1: GIAO DIỆN BẢN ĐỒ & TÌM KIẾM  --- */}
-            <div className="flex h-[calc(100vh-64px)] relative border-b border-gray-200">
-                
+            
+            {/* --- VIDEO HERO SECTION --- */}
+            <VideoHero onStartClick={handleScrollDown} />
+
+            {/* --- GIAO DIỆN BẢN ĐỒ & TÌM KIẾM --- */}
+            <div 
+                ref={mainContentRef} 
+                className="flex h-[calc(100vh-64px)] relative border-b border-gray-200 bg-white scroll-mt-16"
+            >
                 {/* SIDEBAR TÌM KIẾM */}
                 <div 
                     className="bg-white border-r border-gray-200 flex flex-col z-10 shadow-xl flex-shrink-0"
@@ -176,7 +227,7 @@ export default function HomePage() {
                     <div className="p-4 border-b border-gray-100 bg-white">
                         <div className="flex justify-between items-center mb-4">
                             <h2 className="text-lg font-bold text-navy">Tra cứu lộ trình</h2>
-                            {(fromPlace || toPlace) && (
+                            {(fromPlace || toPlace || routes.length > 0) && (
                                 <Button variant="ghost" size="sm" onClick={handleClear} className="text-red-500 hover:text-red-600 hover:bg-red-50 h-8 px-2">
                                     <Trash2 className="h-4 w-4 mr-1" /> Xóa
                                 </Button>
@@ -184,47 +235,79 @@ export default function HomePage() {
                         </div>
                         
                         <div className="space-y-3">
-                            <div className={getInputContainerClass('from')} onClick={() => setActiveField('from')}>
-                                <div className="flex items-center gap-2 mb-1">
-                                    <div className="w-2 h-2 rounded-full bg-blue-600 shadow-sm"></div>
-                                    <span className={`text-xs font-bold ${activeField === 'from' ? 'text-orange' : 'text-gray-500'}`}>
-                                        Điểm đi {activeField === 'from' && '(Đang chọn...)'}
-                                    </span>
+                            
+                            {/* --- INPUT ĐIỂM ĐI (GỘP NÚT LOCATION VÀO TRONG) --- */}
+                            {/* Sử dụng getContainerClass để có viền chung */}
+                            <div className={getContainerClass('from')}>
+                                {/* Phần Input: Chiếm hết chỗ trống (flex-1) & nhận sự kiện click */}
+                                <div 
+                                    className="flex-1 p-2 cursor-pointer" 
+                                    onClick={() => setActiveField('from')}
+                                >
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <div className="w-2 h-2 rounded-full bg-blue-600 shadow-sm"></div>
+                                        <span className={`text-xs font-bold ${activeField === 'from' ? 'text-orange' : 'text-gray-500'}`}>
+                                            Điểm đi {activeField === 'from' && '(Đang chọn...)'}
+                                        </span>
+                                    </div>
+                                    <PlaceAutocomplete
+                                        key={`from-${resetKey}`}
+                                        value={fromPlace}
+                                        onChange={setFromPlace}
+                                        placeholder="Nhập hoặc click bản đồ"
+                                        className="border-none shadow-none p-0 h-auto bg-transparent placeholder:text-gray-400 focus-visible:ring-0 w-full"
+                                    />
                                 </div>
-                                <PlaceAutocomplete
-                                    value={fromPlace}
-                                    onChange={setFromPlace}
-                                    placeholder="Nhập hoặc click bản đồ"
-                                    className="border-none shadow-none p-0 h-auto bg-transparent placeholder:text-gray-400 focus-visible:ring-0"
-                                />
+
+                                {/* Nút Lấy vị trí: Nằm gọn bên phải */}
+                                <div className="pr-2">
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-gray-400 hover:text-blue-600 hover:bg-blue-100/50 rounded-full transition-all"
+                                        onClick={(e) => {
+                                            e.stopPropagation(); // Ngăn click lan ra container (để không kích hoạt activeField nếu không cần)
+                                            handleUseCurrentLocation();
+                                        }}
+                                        disabled={locating}
+                                        title="Lấy vị trí hiện tại"
+                                    >
+                                        {locating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Crosshair className="h-4 w-4" />}
+                                    </Button>
+                                </div>
                             </div>
 
-                            <div className={getInputContainerClass('to')} onClick={() => setActiveField('to')}>
-                                <div className="flex items-center gap-2 mb-1">
-                                    <div className="w-2 h-2 rounded-full bg-red-600 shadow-sm"></div>
-                                    <span className={`text-xs font-bold ${activeField === 'to' ? 'text-orange' : 'text-gray-500'}`}>
-                                        Điểm đến {activeField === 'to' && '(Đang chọn...)'}
-                                    </span>
+                            {/* --- INPUT ĐIỂM ĐẾN --- */}
+                            <div className={getContainerClass('to')} onClick={() => setActiveField('to')}>
+                                <div className="flex-1 p-2 cursor-pointer">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <div className="w-2 h-2 rounded-full bg-red-600 shadow-sm"></div>
+                                        <span className={`text-xs font-bold ${activeField === 'to' ? 'text-orange' : 'text-gray-500'}`}>
+                                            Điểm đến {activeField === 'to' && '(Đang chọn...)'}
+                                        </span>
+                                    </div>
+                                    <PlaceAutocomplete
+                                        key={`to-${resetKey}`}
+                                        value={toPlace}
+                                        onChange={setToPlace}
+                                        placeholder="Nhập hoặc click bản đồ"
+                                        className="border-none shadow-none p-0 h-auto bg-transparent placeholder:text-gray-400 focus-visible:ring-0 w-full"
+                                    />
                                 </div>
-                                <PlaceAutocomplete
-                                    value={toPlace}
-                                    onChange={setToPlace}
-                                    placeholder="Nhập hoặc click bản đồ"
-                                    className="border-none shadow-none p-0 h-auto bg-transparent placeholder:text-gray-400 focus-visible:ring-0"
-                                />
                             </div>
 
                             <Button
                                 onClick={handleSearch}
                                 disabled={loading || !fromPlace || !toPlace}
-                                className="w-full bg-navy hover:bg-navy/90 text-white mt-2"
+                                className="w-full bg-navy hover:bg-navy/90 text-white mt-2 py-6 font-bold text-base shadow-sm"
                             >
-                                {loading ? <Loader2 className="animate-spin h-4 w-4" /> : <Search className="h-4 w-4 mr-2" />}
+                                {loading ? <Loader2 className="animate-spin h-5 w-5" /> : <Search className="h-5 w-5 mr-2" />}
                                 Tìm lộ trình
                             </Button>
                         </div>
                     </div>
 
+                    {/* Danh sách kết quả */}
                     <div className="flex-1 overflow-y-auto p-4 bg-gray-50/50">
                         {error && <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm border border-red-100 mb-4">{error}</div>}
                         
@@ -248,7 +331,7 @@ export default function HomePage() {
                     </div>
                 </div>
 
-                {/* RESIZER */}
+                {/* RESIZER BAR */}
                 <div 
                     className="w-1.5 bg-gray-200 hover:bg-orange cursor-col-resize z-20 flex items-center justify-center transition-colors group"
                     onMouseDown={startResizing}
@@ -256,7 +339,7 @@ export default function HomePage() {
                     <div className="h-8 w-1 rounded-full bg-gray-400 group-hover:bg-white/80"></div>
                 </div>
 
-                {/* MAP VIEW */}
+                {/* MAP COMPONENT */}
                 <div className="flex-1 relative min-w-0 bg-gray-100">
                     <SimpleMapViewer
                         coordinates={mapCoordinates}
@@ -270,13 +353,6 @@ export default function HomePage() {
                             Đang chọn {activeField === 'from' ? 'Điểm đi' : 'Điểm đến'}... Click vào bản đồ
                         </div>
                     )}
-                </div>
-            </div>
-
-            {/* --- PHẦN 2: TÌM TRẠM GẦN ĐÂY --- */}
-            <div className="bg-white py-8">
-                <div className="container mx-auto px-4">
-                    <NearbyStops />
                 </div>
             </div>
         </div>
