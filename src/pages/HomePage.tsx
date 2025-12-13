@@ -28,6 +28,7 @@ export default function HomePage() {
     // --- State Initialization ---
     const getSavedState = () => {
         try {
+            if (typeof window === 'undefined') return {};
             const saved = sessionStorage.getItem(STORAGE_KEY);
             return saved ? JSON.parse(saved) : {};
         } catch (e) {
@@ -38,6 +39,9 @@ export default function HomePage() {
 
     // --- States ---
     const [sidebarWidth, setSidebarWidth] = useState(400);
+    // State kiểm tra màn hình Desktop (để xử lý responsive logic trong JS nếu cần)
+    const [isDesktop, setIsDesktop] = useState(true);
+
     const [fromPlace, setFromPlace] = useState<any>(savedState.from || null);
     const [toPlace, setToPlace] = useState<any>(savedState.to || null);
     const [activeField, setActiveField] = useState<'from' | 'to' | null>(null);
@@ -47,6 +51,16 @@ export default function HomePage() {
     const [resetKey, setResetKey] = useState(0);
 
     // --- Effects ---
+    
+    // 1. Check window size cập nhật state isDesktop
+    useEffect(() => {
+        const checkScreen = () => setIsDesktop(window.innerWidth >= 768);
+        checkScreen(); // Check ngay khi mount
+        window.addEventListener('resize', checkScreen);
+        return () => window.removeEventListener('resize', checkScreen);
+    }, []);
+
+    // 2. Save state vào Session Storage
     useEffect(() => {
         const stateToSave = { from: fromPlace, to: toPlace, routes: routes };
         sessionStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
@@ -59,6 +73,7 @@ export default function HomePage() {
         }
     };
 
+    // Logic kéo thả thay đổi kích thước Sidebar (chỉ dùng cho Desktop)
     const startResizing = useCallback(() => {
         isResizing.current = true;
         document.body.style.cursor = 'col-resize';
@@ -173,7 +188,8 @@ export default function HomePage() {
             } else {
                 setRoutes(response.routes);
             }
-            handleScrollDown();
+            // Nếu là Desktop thì scroll xuống, còn Mobile thì map đã ở trên rồi ko cần scroll
+            if (isDesktop) handleScrollDown();
         } catch (err: any) {
             setError(err?.response?.data?.message || 'Không tìm thấy lộ trình.');
         } finally {
@@ -200,7 +216,7 @@ export default function HomePage() {
 
     const activeRoute = routes[0];
 
-    // Helper class chung cho cả container 'from' và 'to' để đồng bộ giao diện
+    // Helper tạo class chung cho các ô input
     const getContainerClass = (field: 'from' | 'to') => {
         const isActive = activeField === field;
         return `flex items-center rounded-lg border-2 transition-colors relative ${
@@ -217,12 +233,15 @@ export default function HomePage() {
             {/* --- GIAO DIỆN BẢN ĐỒ & TÌM KIẾM --- */}
             <div 
                 ref={mainContentRef} 
-                className="flex h-[calc(100vh-64px)] relative border-b border-gray-200 bg-white scroll-mt-16"
+                // Flex-col cho mobile (dọc), md:flex-row cho desktop (ngang)
+                className="flex flex-col md:flex-row h-[calc(100vh-64px)] relative border-b border-gray-200 bg-white scroll-mt-16"
             >
-                {/* SIDEBAR TÌM KIẾM */}
+                {/* --- KHỐI 1: SIDEBAR TÌM KIẾM --- */}
+                {/* Mobile: Order 2 (nằm dưới map). Desktop: Order 1 (nằm bên trái) */}
                 <div 
-                    className="bg-white border-r border-gray-200 flex flex-col z-10 shadow-xl flex-shrink-0"
-                    style={{ width: sidebarWidth }}
+                    className="bg-white border-r border-gray-200 flex flex-col z-10 shadow-xl flex-shrink-0 order-2 md:order-1 w-full md:w-auto
+                        max-h-[50vh] overflow-y-auto md:max-h-none"
+                    style={isDesktop ? { width: sidebarWidth } : {}}
                 >
                     <div className="p-4 border-b border-gray-100 bg-white">
                         <div className="flex justify-between items-center mb-4">
@@ -235,11 +254,8 @@ export default function HomePage() {
                         </div>
                         
                         <div className="space-y-3">
-                            
-                            {/* --- INPUT ĐIỂM ĐI (GỘP NÚT LOCATION VÀO TRONG) --- */}
-                            {/* Sử dụng getContainerClass để có viền chung */}
+                            {/* --- INPUT ĐIỂM ĐI --- */}
                             <div className={getContainerClass('from')}>
-                                {/* Phần Input: Chiếm hết chỗ trống (flex-1) & nhận sự kiện click */}
                                 <div 
                                     className="flex-1 p-2 cursor-pointer" 
                                     onClick={() => setActiveField('from')}
@@ -258,15 +274,13 @@ export default function HomePage() {
                                         className="border-none shadow-none p-0 h-auto bg-transparent placeholder:text-gray-400 focus-visible:ring-0 w-full"
                                     />
                                 </div>
-
-                                {/* Nút Lấy vị trí: Nằm gọn bên phải */}
                                 <div className="pr-2">
                                     <Button
                                         variant="ghost"
                                         size="icon"
                                         className="h-8 w-8 text-gray-400 hover:text-blue-600 hover:bg-blue-100/50 rounded-full transition-all"
                                         onClick={(e) => {
-                                            e.stopPropagation(); // Ngăn click lan ra container (để không kích hoạt activeField nếu không cần)
+                                            e.stopPropagation();
                                             handleUseCurrentLocation();
                                         }}
                                         disabled={locating}
@@ -299,7 +313,7 @@ export default function HomePage() {
                             <Button
                                 onClick={handleSearch}
                                 disabled={loading || !fromPlace || !toPlace}
-                                className="w-full bg-navy hover:bg-navy/90 text-white mt-2 py-6 font-bold text-base shadow-sm"
+                                className="w-full bg-navy hover:bg-navy/90 text-white mt-2 py-3 md:py-6 font-bold text-base shadow-sm"
                             >
                                 {loading ? <Loader2 className="animate-spin h-5 w-5" /> : <Search className="h-5 w-5 mr-2" />}
                                 Tìm lộ trình
@@ -308,7 +322,7 @@ export default function HomePage() {
                     </div>
 
                     {/* Danh sách kết quả */}
-                    <div className="flex-1 overflow-y-auto p-4 bg-gray-50/50">
+                    <div className="flex-1 overflow-y-auto p-4 bg-gray-50/50 min-h-[200px]">
                         {error && <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm border border-red-100 mb-4">{error}</div>}
                         
                         <div className="space-y-4">
@@ -331,26 +345,32 @@ export default function HomePage() {
                     </div>
                 </div>
 
-                {/* RESIZER BAR */}
+                {/* --- KHỐI 2: RESIZER BAR (Chỉ hiện Desktop) --- */}
                 <div 
-                    className="w-1.5 bg-gray-200 hover:bg-orange cursor-col-resize z-20 flex items-center justify-center transition-colors group"
+                    className="hidden md:flex w-1.5 bg-gray-200 hover:bg-orange cursor-col-resize z-20 items-center justify-center transition-colors group order-2"
                     onMouseDown={startResizing}
                 >
                     <div className="h-8 w-1 rounded-full bg-gray-400 group-hover:bg-white/80"></div>
                 </div>
 
-                {/* MAP COMPONENT */}
-                <div className="flex-1 relative min-w-0 bg-gray-100">
-                    <SimpleMapViewer
-                        coordinates={mapCoordinates}
-                        geometries={activeRoute?.geometries}
-                        segments={activeRoute?.segments}
-                        onMapClick={handleMapClick}
-                    />
+                {/* --- KHỐI 3: MAP COMPONENT --- */}
+                {/* Mobile: Order 1 (trên cùng), h-[50vh] (50% màn hình). Desktop: Order 3 (bên phải), tự giãn */}
+                <div className="relative min-w-0 bg-gray-100 order-1 md:order-3 w-full h-[50vh] md:h-auto md:flex-1">
+                    {/* Wrapper w-full h-full để map chiếm trọn vẹn div cha */}
+                    <div className="w-full h-full">
+                        <SimpleMapViewer
+                            coordinates={mapCoordinates}
+                            geometries={activeRoute?.geometries}
+                            segments={activeRoute?.segments}
+                            onMapClick={handleMapClick}
+                        />
+                    </div>
+                    
+                    {/* Thông báo Floating khi đang chọn điểm */}
                     {activeField && (
-                        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur px-4 py-2 rounded-full shadow-lg border border-orange z-[1000] text-sm font-medium text-orange flex items-center animate-bounce">
-                            <MapPin className="h-4 w-4 mr-2" />
-                            Đang chọn {activeField === 'from' ? 'Điểm đi' : 'Điểm đến'}... Click vào bản đồ
+                        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur px-3 py-1.5 md:px-4 md:py-2 rounded-full shadow-lg border border-orange z-[1000] text-xs md:text-sm font-medium text-orange flex items-center animate-bounce whitespace-nowrap">
+                            <MapPin className="h-3 w-3 md:h-4 md:w-4 mr-2" />
+                            Đang chọn {activeField === 'from' ? 'Điểm đi' : 'Điểm đến'}...
                         </div>
                     )}
                 </div>
