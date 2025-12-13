@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import SimpleMapViewer from '@/components/SimpleMapViewer';
+import BusRouteMapViewer from '@/components/BusRouteMapViewer';
+import BusRouteStepList from '@/components/BusRouteStepList';
 import StepList from '@/components/StepList';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { getRouteDetails, saveFavorite } from '@/services/api';
@@ -106,13 +107,25 @@ export default function RouteDetailPage() {
 
             <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
                 <div>
-                    <p className="text-sm font-semibold text-orange uppercase tracking-wider mb-1">{route.title}</p>
+                    <p className="text-sm font-semibold text-orange uppercase tracking-wider mb-1">
+                        {route.summary || route.title || 'Lộ trình xe buýt'}
+                    </p>
                     <h1 className="text-2xl md:text-3xl font-bold text-navy mb-2">
-                        {route.from.name} → {route.to.name}
+                        {route.from?.name || 'Điểm xuất phát'} → {route.to?.name || 'Điểm đến'}
                     </h1>
                     <p className="text-gray-600">
-                        Khởi hành: {new Date(route.summary.departureTime).toLocaleTimeString()} •
-                        Dự kiến đến: {new Date(route.summary.arrivalTime).toLocaleTimeString()}
+                        {route.departure_time && (
+                            <>Khởi hành: {route.departure_time}</>
+                        )}
+                        {route.segments && route.segments.length > 0 && (
+                            <> • Dự kiến đến: {route.segments[route.segments.length - 1].arrival_time}</>
+                        )}
+                        {route.summary?.departureTime && route.summary?.arrivalTime && (
+                            <>
+                                Khởi hành: {new Date(route.summary.departureTime).toLocaleTimeString()} •
+                                Dự kiến đến: {new Date(route.summary.arrivalTime).toLocaleTimeString()}
+                            </>
+                        )}
                     </p>
                 </div>
                 <Button onClick={handleSave} variant="outline" className="border-orange text-orange hover:bg-orange hover:text-white">
@@ -135,10 +148,10 @@ export default function RouteDetailPage() {
                 <div className="lg:col-span-2 space-y-8">
                     <ErrorBoundary>
                         <div className="h-[400px] rounded-2xl overflow-hidden shadow-lg border border-gray-100">
-                            <SimpleMapViewer
-                                coordinates={route.coordinates || []}
-                                geometries={route.geometries || []}
+                            <BusRouteMapViewer
                                 segments={route.segments || []}
+                                originCoords={route.from?.coords || route.origin_info?.coordinates}
+                                destinationCoords={route.to?.coords || route.destination_info?.coordinates}
                             />
                         </div>
                     </ErrorBoundary>
@@ -146,15 +159,21 @@ export default function RouteDetailPage() {
                     <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <article className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center">
                             <h3 className="text-xs font-semibold text-gray-500 uppercase mb-1">Tổng thời gian</h3>
-                            <p className="text-xl font-bold text-navy">{route.summary.totalDuration} phút</p>
+                            <p className="text-xl font-bold text-navy">
+                                {route.details?.total_time_sec ? Math.ceil(route.details.total_time_sec / 60) : route.summary?.totalDuration || 0} phút
+                            </p>
                         </article>
                         <article className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center">
                             <h3 className="text-xs font-semibold text-gray-500 uppercase mb-1">Chi phí ước tính</h3>
-                            <p className="text-xl font-bold text-navy">{route.summary.totalCost.toLocaleString()}₫</p>
+                            <p className="text-xl font-bold text-navy">
+                                {route.segments ? (route.segments.filter((s: any) => s.mode === 'bus').length * 7000).toLocaleString() : route.summary?.totalCost?.toLocaleString() || 0}₫
+                            </p>
                         </article>
                         <article className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center">
                             <h3 className="text-xs font-semibold text-gray-500 uppercase mb-1">Số lần chuyển tuyến</h3>
-                            <p className="text-xl font-bold text-navy">{route.summary.transfers}</p>
+                            <p className="text-xl font-bold text-navy">
+                                {route.details?.transfers_count || route.summary?.transfers || 0}
+                            </p>
                         </article>
                     </section>
 
@@ -167,7 +186,14 @@ export default function RouteDetailPage() {
 
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 h-fit">
                     <h2 className="text-lg font-bold text-navy mb-6 pb-4 border-b border-gray-100">Chi tiết từng bước</h2>
-                    {route.steps && route.steps.length > 0 ? (
+                    {route.segments && route.segments.length > 0 ? (
+                        <BusRouteStepList 
+                            segments={route.segments}
+                            originCoords={route.from?.coords || route.origin_info?.coordinates}
+                            destinationCoords={route.to?.coords || route.destination_info?.coordinates}
+                            departureTime={route.departure_time}
+                        />
+                    ) : route.steps && route.steps.length > 0 ? (
                         <StepList steps={route.steps} />
                     ) : (
                         <p className="text-gray-500 text-center py-8">Không có thông tin chi tiết.</p>
