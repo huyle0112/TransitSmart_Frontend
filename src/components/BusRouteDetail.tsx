@@ -3,7 +3,7 @@ import { getBusLineDetails } from '@/services/api';
 import BusRouteSchedule from './BusRouteSchedule';
 import { Loader2, ArrowRightLeft, MapPin, Map as MapIcon, List } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import ReviewSection from './ReviewSection';
+
 import BusRouteMap from './BusRouteMap';
 
 interface BusRouteDetailProps {
@@ -132,11 +132,7 @@ export default function BusRouteDetail({ routeName }: BusRouteDetailProps) {
             </div>
 
             <div className="mt-6 border-t border-gray-100 pt-4">
-              <ReviewSection
-                targetType="route"
-                targetId={details.name}
-                title="Đánh giá tuyến buýt"
-              />
+
             </div>
           </>
         ) : (
