@@ -74,15 +74,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, [authState]);
 
     const login = useCallback(async (credentials: any) => {
+        const { email, password } = credentials;
+
+        // Validate email format (all users must have @)
+        if (!email.includes('@')) {
+            throw new Error('Email phải chứa ký tự @');
+        }
+
+        // All logins go through backend
         const response = await loginRequest(credentials) as any;
+
+        // Add role from backend response or default to 'user'
+        const user = {
+            ...response.user,
+            role: response.user.role || (response.user.isAdmin ? 'admin' : 'user')
+        };
+
         setAuthState({
-            user: response.user,
+            user,
             token: response.token,
         });
-        return response;
+        return { user, token: response.token };
     }, []);
 
     const register = useCallback(async (payload: any) => {
+        // Validate email for regular users
+        if (!payload.email.includes('@')) {
+            throw new Error('Email phải chứa ký tự @');
+        }
+
         const response = await registerRequest(payload) as any;
         setAuthState({
             user: response.user,
