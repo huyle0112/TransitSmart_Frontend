@@ -2,13 +2,11 @@ import { useEffect, useState } from 'react';
 import { getUsersAdmin, deleteUserAdmin } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import { ShieldCheck, Loader2, Trash2 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const navigate = useNavigate();
 
   const loadUsers = async () => {
     try {
@@ -45,14 +43,7 @@ export default function AdminUsersPage() {
             <ShieldCheck className="mr-2 h-6 w-6 text-orange" />
             Quản lý người dùng
           </h1>
-          <p className="text-gray-500 mt-1">
-            Xem, kiểm soát và dọn dẹp tài khoản vi phạm.
-          </p>
         </div>
-
-        <Button variant="outline" onClick={() => navigate('/')}>
-          Về trang chủ
-        </Button>
       </div>
 
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm">

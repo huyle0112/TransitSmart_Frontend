@@ -16,11 +16,46 @@ export default function LoginPage() {
         event.preventDefault();
         try {
             setLoading(true);
-            await login(form);
-            const redirectTo = (location.state as any)?.from || '/profile';
+            setError(null);
+
+
+            // Validate email format
+            if (!form.email.includes('@')) {
+                setError('Email phải chứa ký tự @. Ví dụ: user@example.com');
+                setLoading(false);
+                return;
+            }
+
+            // Validate password not empty
+            if (!form.password || form.password.trim() === '') {
+                setError('Vui lòng nhập mật khẩu');
+                setLoading(false);
+                return;
+            }
+
+            const response = await login(form);
+
+            // Redirect based on user role from backend
+            const isAdmin = response.user?.role === 'admin';
+            const redirectTo = isAdmin ? '/admin' : ((location.state as any)?.from || '/profile');
             navigate(redirectTo, { replace: true });
         } catch (err: any) {
-            setError(err?.response?.data?.message || 'Không thể đăng nhập.');
+            // Handle specific error cases with helpful guidance
+            const errorMessage = err?.message || err?.response?.data?.message || '';
+
+            if (errorMessage.includes('User not found') || errorMessage.includes('không tồn tại')) {
+                setError('Tài khoản không tồn tại. Vui lòng kiểm tra lại email hoặc đăng ký tài khoản mới.');
+            } else if (errorMessage.includes('Invalid password') || errorMessage.includes('không chính xác')) {
+                setError('Email hoặc mật khẩu không chính xác. Vui lòng thử lại.');
+            } else if (errorMessage.includes('admin')) {
+                setError('Mật khẩu admin không đúng.');
+            } else if (errorMessage.includes('@')) {
+                setError('Email phải chứa ký tự @. Ví dụ: user@example.com');
+            } else if (errorMessage) {
+                setError(errorMessage);
+            } else {
+                setError('Không thể đăng nhập. Vui lòng kiểm tra lại thông tin hoặc thử lại sau.');
+            }
         } finally {
             setLoading(false);
         }
@@ -45,7 +80,7 @@ export default function LoginPage() {
                     <label className="text-sm font-medium text-gray-700" htmlFor="email">Email</label>
                     <input
                         id="email"
-                        type="email"
+                        type="text"
                         required
                         value={form.email}
                         onChange={(e) => setForm({ ...form, email: e.target.value })}
