@@ -1,4 +1,4 @@
-import { Clock, DollarSign, Footprints, Bus, ArrowRight } from 'lucide-react';
+import { Clock, DollarSign, Footprints, Bus } from 'lucide-react';
 
 interface RouteSegment {
   lineId: string;
@@ -181,7 +181,6 @@ export default function EnhancedRouteCard({
           <div className="space-y-4">
             {timelineSteps.map((step, index) => {
               const isWalk = step.type === 'walk';
-              const isBus = step.type === 'bus';
               
               return (
                 <div key={index} className="relative flex items-start gap-4">

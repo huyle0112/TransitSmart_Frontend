@@ -3,12 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import SimpleMapViewer from '@/components/SimpleMapViewer';
 import BusRouteMapViewer from '@/components/BusRouteMapViewer';
 import PlaceAutocomplete from '@/components/PlaceAutocomplete';
-import RouteSummaryCard from '@/components/RouteSummaryCard';
 import EnhancedRouteCard from '@/components/EnhancedRouteCard';
 import { Button } from '@/components/ui/button';
-import { findRoutes, saveFavorite } from '@/services/api';
+import { findRoutes } from '@/services/api';
 import { reverseGeocode } from '@/services/geocoding';
-import { useAuth } from '@/contexts/AuthContext';
+// import { useAuth } from '@/contexts/AuthContext'; // Not used with mock data
 import { ArrowLeft, Search, MapPin, Loader2, Trash2 } from 'lucide-react';
 
 // Key dùng để lưu trữ trong Session Storage
@@ -19,19 +18,9 @@ const MAX_WIDTH = 600;
 
 export default function MapSearchPage() {
     const navigate = useNavigate();
-    const { isAuthenticated } = useAuth();
 
     // --- State Initialization ---
-    const getSavedState = () => {
-        try {
-            const saved = sessionStorage.getItem(STORAGE_KEY);
-            return saved ? JSON.parse(saved) : {};
-        } catch (e) {
-            return {};
-        }
-    };
-
-    const savedState = getSavedState();
+    // Removed savedState as it's not being used with mock data
 
     // --- State: Layout Resizing ---
     const [sidebarWidth, setSidebarWidth] = useState(400); // Mặc định 400px
@@ -454,7 +443,7 @@ export default function MapSearchPage() {
                         )}
 
                         <div className="space-y-4">
-                            {routes.map((route, idx) => (
+                            {routes.map((route) => (
                                 <EnhancedRouteCard
                                     key={route.route_id}
                                     route={route}
