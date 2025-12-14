@@ -54,22 +54,14 @@ export default function StopSearchPage() {
         }
     };
 
-    // Helper: Hàm lọc trùng lặp bến xe mạnh mẽ
+    // Helper: Hàm lọc trùng lặp bến xe
     const deduplicateStops = (rawStops: any[]) => {
         const uniqueMap = new Map();
         
         rawStops.forEach((stop: any) => {
-            // Tạo composite key: Tên + Lat + Lng
-            // Sử dụng toFixed(5) để làm tròn tọa độ, tránh lệch số thập phân nhỏ
             const key = `${stop.name?.trim()}_${stop.coords?.lat?.toFixed(5)}_${stop.coords?.lng?.toFixed(5)}`;
-            
-            // Nếu key chưa tồn tại thì thêm vào map. 
-            // Nếu đã tồn tại, ta giữ lại cái đầu tiên (thường là cái chính xác hơn hoặc ngẫu nhiên)
             if (!uniqueMap.has(key)) {
                 uniqueMap.set(key, stop);
-            } else {
-                // (Tùy chọn) Merge thông tin nếu cần, ví dụ gộp danh sách tuyến bus
-                // Ở đây giữ logic đơn giản là lấy bến đầu tiên tìm thấy
             }
         });
 
@@ -85,15 +77,12 @@ export default function StopSearchPage() {
             setSelectedPlace({ label: 'Vị trí của bạn', coords });
 
             const response = await getNearbyStops(coords) as any;
-
-            // ĐÃ SỬA: Sử dụng hàm lọc trùng mới thay vì chỉ lọc theo ID
             const uniqueStops = deduplicateStops(response.stops);
 
             setStops(uniqueStops);
             setOrigin(response.origin);
             setHasSearched(true);
 
-            // Auto-select first stop
             if (uniqueStops.length > 0) {
                 const firstStopId = (uniqueStops[0] as any).id;
                 setSelectedStopId(firstStopId);
@@ -125,8 +114,6 @@ export default function StopSearchPage() {
 
             const coords = { lat, lng };
             const response = await getNearbyStops(coords) as any;
-
-            // ĐÃ SỬA: Sử dụng hàm lọc trùng mới thay vì chỉ lọc theo ID
             const uniqueStops = deduplicateStops(response.stops);
 
             setStops(uniqueStops);
@@ -188,7 +175,11 @@ export default function StopSearchPage() {
                     
                     {/* Search Controls */}
                     <div className="w-full md:w-auto md:min-w-[500px] flex gap-2">
-                        <div className="flex-1 flex items-center bg-gray-50 border-2 border-transparent hover:bg-gray-100 rounded-lg transition-all focus-within:bg-orange/5 focus-within:border-orange focus-within:ring-1 focus-within:ring-orange relative">
+                        {/* FIX LỖI HIỂN THỊ TẠI ĐÂY:
+                           Thêm 'z-50' để container này nổi lên trên bản đồ (vốn nằm ở div phía sau).
+                           Các class cũ: relative, bg-gray-50, ... vẫn giữ nguyên.
+                        */}
+                        <div className="flex-1 flex items-center bg-gray-50 border-2 border-transparent hover:bg-gray-100 rounded-lg transition-all focus-within:bg-orange/5 focus-within:border-orange focus-within:ring-1 focus-within:ring-orange relative z-50">
                             <div className="flex-1">
                                 <PlaceAutocomplete
                                     value={selectedPlace}
@@ -233,7 +224,8 @@ export default function StopSearchPage() {
                 
                 {/* Left Column: Map */}
                 <div className="lg:col-span-2 space-y-6">
-                    <div className={`${cardClass} h-[500px] relative`}>
+                    {/* Map Container có z-index thấp hơn (mặc định 0) */}
+                    <div className={`${cardClass} h-[500px] relative z-0`}>
                         {hasSearched && origin ? (
                             <WalkingRouteMap
                                 origin={origin}
