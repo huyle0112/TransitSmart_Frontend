@@ -19,6 +19,38 @@ interface BusRouteMapProps {
   }>;
 }
 
+// Helper to calculate bearing between two points
+const getBearing = (startLat: number, startLng: number, destLat: number, destLng: number) => {
+  const startLatRad = (startLat * Math.PI) / 180;
+  const startLngRad = (startLng * Math.PI) / 180;
+  const destLatRad = (destLat * Math.PI) / 180;
+  const destLngRad = (destLng * Math.PI) / 180;
+
+  const y = Math.sin(destLngRad - startLngRad) * Math.cos(destLatRad);
+  const x =
+    Math.cos(startLatRad) * Math.sin(destLatRad) -
+    Math.sin(startLatRad) * Math.cos(destLatRad) * Math.cos(destLngRad - startLngRad);
+
+  const brng = (Math.atan2(y, x) * 180) / Math.PI;
+  return (brng + 360) % 360;
+};
+
+// Helper to calculate distance between two points (Haversine formula)
+const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+  const R = 6371e3; // metres
+  const φ1 = lat1 * Math.PI / 180;
+  const φ2 = lat2 * Math.PI / 180;
+  const Δφ = (lat2 - lat1) * Math.PI / 180;
+  const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+  const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+    Math.cos(φ1) * Math.cos(φ2) *
+    Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c;
+};
+
 export default function BusRouteMap({ stops }: BusRouteMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -26,6 +58,9 @@ export default function BusRouteMap({ stops }: BusRouteMapProps) {
     markers: L.Layer[];
     route: L.Layer | null;
   }>({ markers: [], route: null });
+  const animationRef = useRef<number | null>(null);
+  const busMarkerRef = useRef<L.Marker | null>(null);
+  const trailRef = useRef<L.Polyline | null>(null);
 
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return;
@@ -56,6 +91,20 @@ export default function BusRouteMap({ stops }: BusRouteMapProps) {
     layersRef.current.markers.forEach(layer => layer.remove());
     if (layersRef.current.route) layersRef.current.route.remove();
     layersRef.current = { markers: [], route: null };
+
+    // Stop previous animation
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current);
+      animationRef.current = null;
+    }
+    if (busMarkerRef.current) {
+      busMarkerRef.current.remove();
+      busMarkerRef.current = null;
+    }
+    if (trailRef.current) {
+      trailRef.current.remove();
+      trailRef.current = null;
+    }
 
     if (stops.length === 0) return;
 
@@ -114,10 +163,164 @@ export default function BusRouteMap({ stops }: BusRouteMapProps) {
         dashArray: '5, 10' // Dashed to indicate it's straight line connection, not exact path
       }).addTo(map);
       layersRef.current.route = polyline;
+
+      // START 3D BUS ANIMATION
+      // Create Bus Marker
+      const busIcon = L.divIcon({
+        className: 'bus-3d-marker',
+        html: `
+              <div class="bus-3d-container">
+                  <div class="bus-body">
+                      <div class="bus-roof"></div>
+                      <div class="bus-side"></div>
+                      <div class="bus-front"></div>
+                      <div class="bus-light-glow"></div>
+                  </div>
+              </div>
+          `,
+        iconSize: [40, 40],
+        iconAnchor: [20, 20]
+      });
+
+      busMarkerRef.current = L.marker(routeCoords[0], {
+        icon: busIcon,
+        zIndexOffset: 1000
+      }).addTo(map);
+
+      // Create Trail Polyline
+      trailRef.current = L.polyline([], {
+        color: '#f97316', // Orange trail
+        weight: 6,
+        opacity: 0.6,
+        lineCap: 'round',
+        className: 'bus-light-trail'
+      }).addTo(map);
+
+      // Animation Loop State
+      let startTimestamp: number | null = null;
+      let segmentStartTime: number | null = null;
+      let currentSegmentIndex = 0;
+      let isPaused = false;
+
+      const SPEED = 150; // Average speed
+      const PAUSE_DURATION = 1000; // 1 second stop at each station
+
+      const animate = (timestamp: number) => {
+        if (!startTimestamp) startTimestamp = timestamp;
+
+        // Initialize segment start time if needed
+        if (!segmentStartTime) segmentStartTime = timestamp;
+
+        if (currentSegmentIndex >= routeCoords.length - 1) {
+          // Reset loop
+          currentSegmentIndex = 0;
+          segmentStartTime = timestamp;
+          isPaused = false;
+          // Loop immediately
+        }
+
+        const p1 = routeCoords[currentSegmentIndex];
+        const p2 = routeCoords[currentSegmentIndex + 1];
+        const dist = getDistance(p1[0], p1[1], p2[0], p2[1]);
+        const duration = (dist / SPEED) * 1000;
+
+        // Calculate time elapsed in this segment (excluding pause time if we logic it that way, but here we separate states)
+        let timeElapsed = timestamp - segmentStartTime;
+
+        if (isPaused) {
+          if (timeElapsed > PAUSE_DURATION) {
+            // Resume movement
+            isPaused = false;
+            segmentStartTime = timestamp;
+            timeElapsed = 0;
+          } else {
+            // Still paused
+            // Update marker to stay at p1 (or p2 if we paused at end? Let's pause at p2, i.e. arrival)
+            // Actually strategy: Move -> Arrive P2 -> Pause -> Next Segment
+
+            // Wait, my logic below handles moving P1->P2.
+            // So pause should happen AFTER reaching P2.
+
+            // Re-visiting logic:
+            // We are currently at P1 (start of loop or end of prev pause).
+            // But wait, "Pause at bus stop". P1 is a bus stop. P2 is next.
+            // Only pause at P2 (arrival). P1 is departure.
+
+            // To make it smooth:
+            // 1. Depart P1 (Accelerate)
+            // 2. Move
+            // 3. Arrive P2 (Decelerate)
+            // 4. Pause at P2
+
+            // So the "Pause" state comes AFTER the move duration.
+
+            // If we are in "Move" state:
+            // Check if timeElapsed > duration. then switch to Pause.
+          }
+        }
+
+        if (!isPaused) {
+          // MOVING PHASE
+          if (timeElapsed >= duration) {
+            // Reached destination P2
+            isPaused = true;
+            segmentStartTime = timestamp; // Reset timer for pause
+
+            // Snap to P2
+            const newPos = new L.LatLng(p2[0], p2[1]);
+            busMarkerRef.current?.setLatLng(newPos);
+
+            // Prepare for next segment logic
+            currentSegmentIndex++;
+            // Note: We increment index here so that when pause ends, we start from new P1 (which is old P2)
+            // But we must correct the 'p1, p2' variables for the *next* frame or handle index carefully
+            // In this frame, we just snap and set pause. Next frame will see isPaused=true.
+            // Wait, if I increment index here, next frame 'p1' will be the NEW start.
+            // But we want to pause AT p2 (which is NEW p1).
+            // So next frame: isPaused is true. p1 is the current location. correct.
+          } else {
+            // Interpolate
+            // Ease-in-out function
+            const t = timeElapsed / duration;
+            const ease = t < .5 ? 2 * t * t : -1 + (4 - 2 * t) * t; // Quad ease-in-out
+
+            const lat = p1[0] + (p2[0] - p1[0]) * ease;
+            const lng = p1[1] + (p2[1] - p1[1]) * ease;
+            const newPos = new L.LatLng(lat, lng);
+
+            busMarkerRef.current?.setLatLng(newPos);
+
+            // Update Bearing
+            const bearing = getBearing(p1[0], p1[1], p2[0], p2[1]);
+            const markerElement = busMarkerRef.current?.getElement();
+            if (markerElement) {
+              const container = markerElement.querySelector('.bus-3d-container') as HTMLElement;
+              if (container) {
+                container.style.transform = `rotate(${bearing}deg)`;
+              }
+            }
+          }
+        } else {
+          // PAUSING PHASE
+          // Just wait.
+          if (timeElapsed >= PAUSE_DURATION) {
+            isPaused = false;
+            segmentStartTime = timestamp;
+          }
+        }
+
+        animationRef.current = requestAnimationFrame(animate);
+      };
+
+      animationRef.current = requestAnimationFrame(animate);
     }
 
     // Fit map to show all markers
     map.fitBounds(bounds, { padding: [50, 50] });
+
+    return () => {
+      if (animationRef.current) cancelAnimationFrame(animationRef.current);
+    };
 
   }, [stops]);
 

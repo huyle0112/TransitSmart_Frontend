@@ -31,6 +31,38 @@ interface SimpleMapViewerProps {
 /**
  * Simple MapViewer using vanilla Leaflet to avoid React-Leaflet re-render issues
  */
+// Helper to calculate bearing between two points
+const getBearing = (startLat: number, startLng: number, destLat: number, destLng: number) => {
+    const startLatRad = (startLat * Math.PI) / 180;
+    const startLngRad = (startLng * Math.PI) / 180;
+    const destLatRad = (destLat * Math.PI) / 180;
+    const destLngRad = (destLng * Math.PI) / 180;
+
+    const y = Math.sin(destLngRad - startLngRad) * Math.cos(destLatRad);
+    const x =
+        Math.cos(startLatRad) * Math.sin(destLatRad) -
+        Math.sin(startLatRad) * Math.cos(destLatRad) * Math.cos(destLngRad - startLngRad);
+
+    const brng = (Math.atan2(y, x) * 180) / Math.PI;
+    return (brng + 360) % 360;
+};
+
+// Helper to calculate distance between two points (Haversine formula)
+const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371e3; // metres
+    const φ1 = lat1 * Math.PI / 180;
+    const φ2 = lat2 * Math.PI / 180;
+    const Δφ = (lat2 - lat1) * Math.PI / 180;
+    const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+    const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+        Math.cos(φ1) * Math.cos(φ2) *
+        Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return R * c;
+};
+
 export default function SimpleMapViewer({
     coordinates = [],
     geometries = [],
@@ -41,6 +73,9 @@ export default function SimpleMapViewer({
     const mapRef = useRef<HTMLDivElement>(null);
     const mapInstanceRef = useRef<L.Map | null>(null);
     const layersRef = useRef<L.Layer[]>([]);
+    const animationRef = useRef<number | null>(null);
+    const busMarkerRef = useRef<L.Marker | null>(null);
+    const trailRef = useRef<L.Polyline | null>(null);
 
     useEffect(() => {
         // Only initialize map once
@@ -80,12 +115,6 @@ export default function SimpleMapViewer({
 
         // Update map content when data changes
         if (mapInstanceRef.current) {
-            // console.log('🗺️ Updating map content...', {
-            //     coordinates: coordinates.length,
-            //     geometries: geometries?.length || 0,
-            //     segments: segments?.length || 0
-            // });
-
             // Clear existing layers
             layersRef.current.forEach(layer => {
                 try {
@@ -96,19 +125,40 @@ export default function SimpleMapViewer({
             });
             layersRef.current = [];
 
+            // Stop any running animation
+            if (animationRef.current) {
+                cancelAnimationFrame(animationRef.current);
+                animationRef.current = null;
+            }
+            if (busMarkerRef.current) {
+                mapInstanceRef.current.removeLayer(busMarkerRef.current);
+                busMarkerRef.current = null;
+            }
+            if (trailRef.current) {
+                mapInstanceRef.current.removeLayer(trailRef.current);
+                trailRef.current = null;
+            }
+
             const positions = coordinates
                 .filter(point => point && point.coords)
                 .map(point => [point.coords.lat, point.coords.lng] as [number, number]);
 
-            // Draw geometries or fallback to straight lines
+            // Draw geometries
             const hasGeometries = geometries && geometries.length > 0;
 
             if (hasGeometries) {
+                let fullRoutePoints: [number, number][] = [];
+
                 geometries.forEach((geometry, idx) => {
                     if (!geometry || geometry.length < 2) return;
 
                     const segment = segments[idx];
                     const isWalk = segment?.mode === 'walk';
+
+                    // Collect points for animation if it's a bus segment
+                    if (!isWalk) {
+                        fullRoutePoints = [...fullRoutePoints, ...geometry];
+                    }
 
                     // Draw route polyline with better colors
                     const polyline = L.polyline(geometry, {
@@ -193,16 +243,110 @@ export default function SimpleMapViewer({
                         }
                     }
                 });
+
+                // START 3D BUS ANIMATION
+                if (fullRoutePoints.length > 1) {
+                    // Create Bus Marker
+                    const busIcon = L.divIcon({
+                        className: 'bus-3d-marker',
+                        html: `
+                            <div class="bus-3d-container">
+                                <div class="bus-body">
+                                    <div class="bus-roof"></div>
+                                    <div class="bus-side"></div>
+                                    <div class="bus-front"></div>
+                                    <div class="bus-light-glow"></div>
+                                </div>
+                            </div>
+                        `,
+                        iconSize: [40, 40],
+                        iconAnchor: [20, 20]
+                    });
+
+                    busMarkerRef.current = L.marker(fullRoutePoints[0], {
+                        icon: busIcon,
+                        zIndexOffset: 1000
+                    }).addTo(mapInstanceRef.current);
+
+                    // Create Trail Polyline
+                    trailRef.current = L.polyline([], {
+                        color: '#f97316', // Orange trail to match bus color
+                        weight: 6,
+                        opacity: 0.6,
+                        lineCap: 'round',
+                        className: 'bus-light-trail'
+                    }).addTo(mapInstanceRef.current);
+
+                    // Animation Loop
+                    let startTime: number | null = null;
+                    const speed = 150; // meters per second (approx simulated speed)
+                    let totalDistance = 0;
+                    const distances: number[] = [0];
+
+                    // Pre-calculate distances
+                    for (let i = 0; i < fullRoutePoints.length - 1; i++) {
+                        const d = getDistance(
+                            fullRoutePoints[i][0], fullRoutePoints[i][1],
+                            fullRoutePoints[i + 1][0], fullRoutePoints[i + 1][1]
+                        );
+                        totalDistance += d;
+                        distances.push(totalDistance);
+                    }
+
+                    const duration = (totalDistance / speed) * 1000; // ms
+
+                    const animate = (timestamp: number) => {
+                        if (!startTime) startTime = timestamp;
+                        const progress = (timestamp - startTime) % duration; // Loop forever
+                        const currentDist = (progress / duration) * totalDistance;
+
+                        // Find current segment
+                        let i = 0;
+                        while (i < distances.length - 1 && distances[i + 1] < currentDist) {
+                            i++;
+                        }
+
+                        // Interpolate position
+                        const segmentDist = distances[i + 1] - distances[i];
+                        const segmentProgress = (currentDist - distances[i]) / segmentDist;
+
+                        const p1 = fullRoutePoints[i];
+                        const p2 = fullRoutePoints[i + 1];
+
+                        if (p1 && p2) {
+                            const lat = p1[0] + (p2[0] - p1[0]) * segmentProgress;
+                            const lng = p1[1] + (p2[1] - p1[1]) * segmentProgress;
+                            const newPos = new L.LatLng(lat, lng);
+
+                            // Update Marker Position
+                            busMarkerRef.current?.setLatLng(newPos);
+
+                            // Update Bearing/Rotation
+                            const bearing = getBearing(p1[0], p1[1], p2[0], p2[1]);
+                            const markerElement = busMarkerRef.current?.getElement();
+                            if (markerElement) {
+                                const container = markerElement.querySelector('.bus-3d-container') as HTMLElement;
+                                if (container) {
+                                    container.style.transform = `rotate(${bearing}deg)`;
+                                    // Adjust tilt based on view if possible, but for now simple rotation
+                                }
+                            }
+                        }
+
+                        animationRef.current = requestAnimationFrame(animate);
+                    };
+
+                    animationRef.current = requestAnimationFrame(animate);
+                }
             }
 
-            // Add markers with custom icons
+            // Add markers with custom icons (Origin/Dest)
             coordinates.forEach((point, index) => {
                 if (!point || !point.coords) return;
 
-                // Create custom icon based on index
                 let customIcon;
                 if (index === 0) {
-                    // Origin: UserRound icon (person)
+                    // Origin
                     customIcon = L.divIcon({
                         html: `
                             <div style="
@@ -224,11 +368,11 @@ export default function SimpleMapViewer({
                         `,
                         className: 'custom-marker-icon',
                         iconSize: [44, 44],
-                        iconAnchor: [22, 22], // Center of icon
+                        iconAnchor: [22, 22],
                         popupAnchor: [0, -22]
                     });
                 } else {
-                    // Destination: CircleCheckBig icon (arrived/completed)
+                    // Destination
                     customIcon = L.divIcon({
                         html: `
                             <div style="
@@ -250,19 +394,18 @@ export default function SimpleMapViewer({
                         `,
                         className: 'custom-marker-icon',
                         iconSize: [44, 44],
-                        iconAnchor: [22, 22], // Center of icon
+                        iconAnchor: [22, 22],
                         popupAnchor: [0, -22]
                     });
                 }
 
                 const marker = L.marker([point.coords.lat, point.coords.lng], { icon: customIcon })
                     .addTo(mapInstanceRef.current!)
-                    .bindPopup(`<strong>${point.name || 'Stop'}</strong><br/>${point.type || ''}`);
-
+                    .bindPopup(`<strong>${point.name || 'Location'}</strong>`);
                 layersRef.current.push(marker);
             });
 
-            // Fit bounds if we have positions
+            // Fit bounds
             if (positions.length > 0) {
                 try {
                     const bounds = L.latLngBounds(positions);
@@ -275,7 +418,7 @@ export default function SimpleMapViewer({
 
         // Cleanup function
         return () => {
-            // Don't destroy map on every render, only on unmount
+            if (animationRef.current) cancelAnimationFrame(animationRef.current);
         };
     }, [coordinates, geometries, segments, onMapClick]);
 
@@ -283,7 +426,6 @@ export default function SimpleMapViewer({
     useEffect(() => {
         return () => {
             if (mapInstanceRef.current) {
-                // console.log('🗺️ Cleaning up map...');
                 try {
                     mapInstanceRef.current.remove();
                     mapInstanceRef.current = null;
@@ -315,7 +457,6 @@ export default function SimpleMapViewer({
             ref={mapRef}
             className={`w-full h-full relative ${className || ''}`}
             style={{
-                // Đã xóa minHeight: '400px' ở đây để nhận chiều cao từ cha
                 borderRadius: '12px',
                 overflow: 'hidden'
             }}
