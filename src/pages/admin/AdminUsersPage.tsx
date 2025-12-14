@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { getUsersAdmin, deleteUserAdmin } from '@/services/api';
+import { getUsersAdmin, deleteUserAdmin, lockUser, unlockUser } from '@/services/api';
 import { Button } from '@/components/ui/button';
-import { ShieldCheck, Loader2, Trash2 } from 'lucide-react';
+import { ShieldCheck, Loader2, Trash2, Lock, Unlock } from 'lucide-react';
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<any[]>([]);
@@ -61,6 +61,7 @@ export default function AdminUsersPage() {
                   <th className="p-4">Tên</th>
                   <th className="p-4">Email</th>
                   <th className="p-4 hidden md:table-cell">Ngày tạo</th>
+                  <th className="p-4">Trạng thái</th>
                   <th className="p-4 text-right">Hoạt động</th>
                   <th className="p-4 text-right">Thao tác</th>
                 </tr>
@@ -80,10 +81,52 @@ export default function AdminUsersPage() {
                       <td className="p-4 hidden md:table-cell text-gray-500">
                         {user.created_at ? new Date(user.created_at).toLocaleString() : '—'}
                       </td>
+                      <td className="p-4 text-gray-700">
+                        {user.role === 'locked' ? (
+                          <span className="text-red-500 font-semibold">Đã khóa</span>
+                        ) : user.role === 'admin' ? (
+                          <span className="text-green-600 font-semibold">Admin</span>
+                        ) : (
+                          <span className="text-gray-700">Người dùng</span>
+                        )}
+                      </td>
                       <td className="p-4 text-right text-gray-600">
                         {user.favoritesCount || 0} yêu thích · {user.historyCount || 0} lịch sử · {user.reviewsCount || 0} đánh giá
                       </td>
                       <td className="p-4 text-right">
+                        <div className="flex items-center gap-2 justify-end">
+                          {user.role === 'locked' ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-green-600 hover:bg-green-50"
+                              onClick={async () => {
+                                await unlockUser(user.id);
+                                setUsers((prev) =>
+                                  prev.map((u) => (u.id === user.id ? { ...u, role: 'user' } : u))
+                                );
+                              }}
+                            >
+                              <Unlock className="h-4 w-4 mr-1" />
+                              Mở khóa
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-orange hover:bg-orange/10"
+                              onClick={async () => {
+                                if (!confirm('Khóa tài khoản này?')) return;
+                                await lockUser(user.id);
+                                setUsers((prev) =>
+                                  prev.map((u) => (u.id === user.id ? { ...u, role: 'locked' } : u))
+                                );
+                              }}
+                            >
+                              <Lock className="h-4 w-4 mr-1" />
+                              Khóa
+                            </Button>
+                          )}
                         <Button
                           variant="ghost"
                           size="sm"
@@ -92,6 +135,7 @@ export default function AdminUsersPage() {
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
+                        </div>
                       </td>
                     </tr>
                   ))

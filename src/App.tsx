@@ -10,6 +10,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import ProfilePage from "./pages/ProfilePage";
 import AdminBusLinesPage from "./pages/admin/AdminBusLinesPage";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
+import AdminReviewsPage from "./pages/admin/AdminReviewsPage";
 import StopsPage from "./pages/StopsPage";
 import AdminUsersPage from "./pages/admin/AdminUsersPage";
 import LoginPage from "./pages/LoginPage";
@@ -32,6 +33,7 @@ function App() {
                     <Route path="/admin/users" element={<AdminUsersPage />} />
                     <Route path="/admin/routes" element={<AdminBusLinesPage />} />
                     <Route path="/admin/stops" element={<StopsPage />} />
+                    <Route path="/admin/reviews" element={<AdminReviewsPage />} />
                 </Route>
 
                 <Route element={<MainLayout />}>
