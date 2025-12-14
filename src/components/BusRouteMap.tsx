@@ -1,6 +1,9 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import BusRadio from './BusRadio';
+import StopPreviewCard from './StopPreviewCard';
+
 
 // Fix Leaflet default icon issue
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -62,6 +65,13 @@ export default function BusRouteMap({ stops }: BusRouteMapProps) {
   const busMarkerRef = useRef<L.Marker | null>(null);
   const trailRef = useRef<L.Polyline | null>(null);
 
+
+  const [hoveredStop, setHoveredStop] = useState<{ id: string; name: string; x: number; y: number } | null>(null);
+
+  // Tile Layer Effect
+  // Tile Layer Effect
+
+
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return;
 
@@ -69,9 +79,9 @@ export default function BusRouteMap({ stops }: BusRouteMapProps) {
     const map = L.map(mapRef.current).setView([10.7769, 106.7009], 13);
     mapInstanceRef.current = map;
 
-    // Add tile layer
+    // Add Tile Layer
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors',
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
       maxZoom: 19,
     }).addTo(map);
 
@@ -82,6 +92,22 @@ export default function BusRouteMap({ stops }: BusRouteMapProps) {
       }
     };
   }, []);
+
+  // Clear hover on interaction
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    map.on('click', () => setHoveredStop(null));
+    map.on('dragstart', () => setHoveredStop(null));
+    map.on('zoomstart', () => setHoveredStop(null));
+
+    return () => {
+      map.off('click');
+      map.off('dragstart');
+      map.off('zoomstart');
+    }
+  }, [mapInstanceRef.current]);
 
   useEffect(() => {
     const map = mapInstanceRef.current;
@@ -146,8 +172,28 @@ export default function BusRouteMap({ stops }: BusRouteMapProps) {
 
       // Add stop marker
       const stopMarker = L.marker([stop.lat, stop.lng], { icon: stopIcon })
-        .bindPopup(`<b>${index + 1}. ${stop.name}</b>`)
         .addTo(map);
+
+      // Interaction Events
+      stopMarker.on('mouseover', (e: L.LeafletMouseEvent) => {
+        // Calculate pixel position for tooltip
+        const point = map.latLngToContainerPoint([stop.lat, stop.lng]);
+        setHoveredStop({
+          id: stop.id,
+          name: stop.name,
+          x: point.x,
+          y: point.y
+        });
+      });
+
+      // We don't hide immediately on mouseout to allow moving to the popup? 
+      // Actually standard tooltip behavior is hide on mouseout.
+      // Let's hide on specific conditions or use a small delay?
+      // For now, strict hover.
+      stopMarker.on('click', () => {
+        // Maybe zoom in?
+        map.setView([stop.lat, stop.lng], 16, { animate: true });
+      });
 
       layersRef.current.markers.push(stopMarker);
       bounds.extend([stop.lat, stop.lng]);
@@ -237,25 +283,11 @@ export default function BusRouteMap({ stops }: BusRouteMapProps) {
             // Still paused
             // Update marker to stay at p1 (or p2 if we paused at end? Let's pause at p2, i.e. arrival)
             // Actually strategy: Move -> Arrive P2 -> Pause -> Next Segment
-
-            // Wait, my logic below handles moving P1->P2.
-            // So pause should happen AFTER reaching P2.
-
-            // Re-visiting logic:
-            // We are currently at P1 (start of loop or end of prev pause).
-            // But wait, "Pause at bus stop". P1 is a bus stop. P2 is next.
-            // Only pause at P2 (arrival). P1 is departure.
-
             // To make it smooth:
             // 1. Depart P1 (Accelerate)
             // 2. Move
             // 3. Arrive P2 (Decelerate)
             // 4. Pause at P2
-
-            // So the "Pause" state comes AFTER the move duration.
-
-            // If we are in "Move" state:
-            // Check if timeElapsed > duration. then switch to Pause.
           }
         }
 
@@ -272,12 +304,6 @@ export default function BusRouteMap({ stops }: BusRouteMapProps) {
 
             // Prepare for next segment logic
             currentSegmentIndex++;
-            // Note: We increment index here so that when pause ends, we start from new P1 (which is old P2)
-            // But we must correct the 'p1, p2' variables for the *next* frame or handle index carefully
-            // In this frame, we just snap and set pause. Next frame will see isPaused=true.
-            // Wait, if I increment index here, next frame 'p1' will be the NEW start.
-            // But we want to pause AT p2 (which is NEW p1).
-            // So next frame: isPaused is true. p1 is the current location. correct.
           } else {
             // Interpolate
             // Ease-in-out function
@@ -302,7 +328,6 @@ export default function BusRouteMap({ stops }: BusRouteMapProps) {
           }
         } else {
           // PAUSING PHASE
-          // Just wait.
           if (timeElapsed >= PAUSE_DURATION) {
             isPaused = false;
             segmentStartTime = timestamp;
@@ -325,10 +350,31 @@ export default function BusRouteMap({ stops }: BusRouteMapProps) {
   }, [stops]);
 
   return (
-    <div
-      ref={mapRef}
-      className="w-full h-full rounded-lg bg-gray-100"
-      style={{ minHeight: '100%' }}
-    />
+    <div className="relative w-full h-full rounded-lg overflow-hidden border border-gray-200" style={{ minHeight: '100%' }}>
+
+      <div
+        ref={mapRef}
+        className="w-full h-full bg-gray-100"
+        style={{ minHeight: '100%' }}
+      />
+
+      {/* Overlays */}
+
+      <BusRadio />
+
+      {/* Map Hover Card */}
+      {hoveredStop && (
+        <StopPreviewCard
+          stopName={hoveredStop.name}
+          onClose={() => setHoveredStop(null)}
+          style={{
+            top: hoveredStop.y - 280, // Position above the marker
+            left: hoveredStop.x - 128, // Center horizontally (width 256/2)
+            zIndex: 2000, // Higher than map controls
+          }}
+        />
+      )}
+
+    </div>
   );
 }
