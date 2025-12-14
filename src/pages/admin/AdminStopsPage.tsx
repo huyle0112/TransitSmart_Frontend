@@ -4,7 +4,6 @@ import { Input } from '@/components/ui/input';
 import {
     MapPin,
     Search,
-    Plus,
     Edit,
     Trash2,
     Loader2,
@@ -145,20 +144,11 @@ export default function AdminStopsPage() {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold text-navy mb-2">Quản lý điểm dừng</h1>
-                    <p className="text-gray-600">
-                        Quản lý thông tin điểm dừng xe buýt trong hệ thống
-                    </p>
-                </div>
-                <Button
-                    onClick={() => { resetForm(); setIsEditing(false); }}
-                    className="bg-navy hover:bg-navy/90"
-                >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Thêm điểm dừng mới
-                </Button>
+            <div>
+                <h1 className="text-2xl font-bold text-navy mb-2">Quản lý điểm dừng</h1>
+                <p className="text-gray-600">
+                    Quản lý thông tin điểm dừng xe buýt trong hệ thống
+                </p>
             </div>
 
             {/* Stats - Chỉ hiện Tổng điểm dừng */}

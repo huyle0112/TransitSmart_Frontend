@@ -15,12 +15,15 @@ import {
 } from '../services/api';
 
 const STORAGE_KEY = 'transit-auth';
+const REFRESH_TOKEN_KEY = 'transit-auth-refresh';
 
-interface User {
+export interface User {
     id: string;
-    name: string;
+    name?: string;
     email: string;
     role?: string;
+    isAdmin?: boolean;
+    path_url?: string; // Avatar URL
 }
 
 interface AuthState {
@@ -32,6 +35,7 @@ interface AuthContextType extends AuthState {
     login: (credentials: any) => Promise<any>;
     register: (payload: any) => Promise<any>;
     logout: () => void;
+    refreshUser: () => Promise<void>;
     refresh: () => Promise<void>;
     isAuthenticated: boolean;
     isAdmin: boolean;
@@ -43,9 +47,10 @@ const AuthContext = createContext<AuthContextType>({
     login: async () => { },
     register: async () => { },
     logout: () => { },
+    refreshUser: async () => { },
+    refresh: async () => { },
     isAuthenticated: false,
     isAdmin: false,
-    refresh: async () => { },
 });
 
 function getInitialAuth(): AuthState {
@@ -61,7 +66,42 @@ function getInitialAuth(): AuthState {
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [authState, setAuthState] = useState<AuthState>(getInitialAuth);
 
-    const logout = useCallback(() => setAuthState({ user: null, token: null }), []);
+    const refreshUser = useCallback(async () => {
+        try {
+            const response = await getCurrentUser() as any;
+            const userData = response?.user || response;
+            if (userData) {
+                // Ensure role is set properly from isAdmin flag
+                const user = {
+                    ...userData,
+                    role: userData.role || (userData.isAdmin ? 'admin' : 'user')
+                };
+                setAuthState(prev => ({
+                    ...prev,
+                    user: user,
+                }));
+            }
+        } catch (error) {
+            console.error('Failed to refresh user:', error);
+            // Optionally, log out if refresh fails due to invalid token
+            // logout(); // This might cause a loop if logout also calls refresh
+        }
+    }, []);
+
+    const logout = useCallback(async () => {
+        try {
+            // Call logout API to invalidate refresh token
+            const { logoutApi } = await import('../services/api');
+            await logoutApi();
+        } catch (error) {
+            console.error('Logout error:', error);
+        } finally {
+            // Clear all tokens
+            localStorage.removeItem(STORAGE_KEY);
+            localStorage.removeItem(REFRESH_TOKEN_KEY);
+            setAuthState({ user: null, token: null });
+        }
+    }, []);
 
     useEffect(() => {
         if (authState.token) {
@@ -90,6 +130,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             role: response.user.role || (response.user.isAdmin ? 'admin' : 'user')
         };
 
+        // Store refresh token separately
+        if (response.refreshToken) {
+            localStorage.setItem(REFRESH_TOKEN_KEY, response.refreshToken);
+        }
+
         setAuthState({
             user,
             token: response.token,
@@ -104,6 +149,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         const response = await registerRequest(payload) as any;
+
+        // Store refresh token separately
+        if (response.refreshToken) {
+            localStorage.setItem(REFRESH_TOKEN_KEY, response.refreshToken);
+        }
+
         setAuthState({
             user: response.user,
             token: response.token,
@@ -115,8 +166,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!authState.token) return;
         try {
             const response = await getCurrentUser() as any;
-            const user = response?.user || response;
-            if (user) {
+            const userData = response?.user || response;
+            if (userData) {
+                // Ensure role is set properly from isAdmin flag
+                const user = {
+                    ...userData,
+                    role: userData.role || (userData.isAdmin ? 'admin' : 'user')
+                };
                 setAuthState((prev) => ({ ...prev, user }));
             }
         } catch (error) {
@@ -137,11 +193,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             login,
             register,
             logout,
+            refreshUser,
             refresh,
             isAuthenticated: Boolean(authState.token),
             isAdmin: authState.user?.role === 'admin',
         }),
-        [authState, login, register, logout, refresh]
+        [authState, login, register, logout, refresh, refreshUser]
     );
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

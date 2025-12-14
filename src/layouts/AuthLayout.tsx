@@ -1,9 +1,22 @@
-import { Outlet, Link, useLocation } from 'react-router-dom';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
 import { Bus, MapPin, Clock, TrendingUp } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function AuthLayout() {
     const location = useLocation();
+    const navigate = useNavigate();
+    const { isAuthenticated, isAdmin } = useAuth();
     const isLogin = location.pathname === '/login' || location.state?.mode === 'login';
+
+    // Redirect authenticated users away from login/register pages
+    useEffect(() => {
+        if (isAuthenticated) {
+            // Admin users go to admin dashboard, regular users go to home
+            const redirectTo = isAdmin ? '/admin' : '/';
+            navigate(redirectTo, { replace: true });
+        }
+    }, [isAuthenticated, isAdmin, navigate]);
 
     return (
         <div className="min-h-screen flex bg-gray-50">
@@ -19,9 +32,7 @@ export default function AuthLayout() {
                 <div className="relative z-10 flex flex-col justify-between p-12 text-white w-full">
                     {/* Logo */}
                     <Link to="/" className="flex items-center gap-3 group">
-                        <div className="w-12 h-12 bg-orange rounded-xl flex items-center justify-center font-bold text-white text-2xl shadow-lg group-hover:bg-orange-hover transition-all duration-300 group-hover:scale-110">
-                            T
-                        </div>
+                        <img src="../public/assets/web-icon/web-icon.png" alt="" className="w-12 h-12" />
                         <span className="text-2xl font-bold tracking-tight">
                             Transit<span className="text-orange">Smart</span>
                         </span>

@@ -1,9 +1,12 @@
-import { Link, NavLink } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { useAuth } from "@/contexts/AuthContext";
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { User, LogOut, Menu, X } from 'lucide-react';
+import { useState } from 'react';
 
 const Header = () => {
-    const { user, logout, isAdmin } = useAuth();
+    const { isAuthenticated, user, logout, isAdmin } = useAuth();
+    const navigate = useNavigate();
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
     const navLinks = [
         { to: "/", label: "Tìm lộ trình" },
@@ -13,78 +16,171 @@ const Header = () => {
 
     const handleLogout = () => {
         logout();
+        setMobileMenuOpen(false);
+        navigate('/login');
+    };
+
+    const closeMobileMenu = () => {
+        setMobileMenuOpen(false);
     };
 
     return (
-        <header className="sticky top-0 z-1100 w-full bg-navy text-white shadow-md">
-            <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-                <Link to="/" className="flex items-center gap-2 group">
-                    <div className="w-8 h-8 bg-orange rounded-lg flex items-center justify-center font-bold text-white shadow-sm group-hover:bg-orange-hover transition-colors">
-                        T
-                    </div>
-                    <span className="text-xl font-bold tracking-tight">
-                        Transit<span className="text-orange">Smart</span>
-                    </span>
-                </Link>
+        <header className="bg-navy text-white shadow-lg sticky top-0 z-[999]">
+            <div className="container mx-auto px-4">
+                <div className="flex items-center justify-between h-16">
+                    {/* Logo */}
+                    <Link to="/" className="flex items-center gap-2 text-xl font-bold hover:text-orange transition-colors" onClick={closeMobileMenu}>
+                        <img
+                            src="/assets/web-icon/web-icon.png"
+                            alt="Smart Transit Logo"
+                            className="h-8 w-8 object-contain"
+                        />
+                        <span className="hidden sm:inline">Smart Transit</span>
+                        <span className="sm:hidden">ST</span>
+                    </Link>
 
-                <nav className="hidden md:flex gap-6">
-                    {navLinks.map((link) => (
-                        <NavLink
-                            key={link.to}
-                            to={link.to}
-                            className={({ isActive }) =>
-                                `text-sm font-medium transition-colors ${isActive
-                                    ? "text-orange"
-                                    : "text-gray-300 hover:text-white"
-                                }`
-                            }
-                            end={link.to === "/"}
-                        >
-                            {link.label}
-                        </NavLink>
-                    ))}
-                </nav>
-
-                <div className="flex items-center gap-4">
-                    {user ? (
-                        <div className="flex items-center gap-3">
-                            <Link to="/profile" className="text-sm text-gray-300 hover:text-white hidden sm:inline-flex items-center gap-2">
-                                <span>Xin chào, {user.name || user.email}</span>
-                                {isAdmin && <span className="text-[10px] px-2 py-1 rounded-full border border-white/30 uppercase">Admin</span>}
-                            </Link>
-                            {isAdmin && (
-                                <Link to="/admin/users" className="hidden md:inline-block">
-                                    <Button variant="outline" size="sm" className="text-white border-white/20 hover:bg-white/10">
-                                        Quản trị
-                                    </Button>
-                                </Link>
-                            )}
-                            <Button
-                                variant="ghost"
-                                onClick={handleLogout}
-                                className="text-sm text-white hover:bg-white/10 hover:text-white"
-                                size="sm"
+                    {/* Center Navigation - Desktop Only */}
+                    <nav className="hidden md:flex items-center gap-6 absolute left-1/2 -translate-x-1/2">
+                        {navLinks.map((link) => (
+                            <Link
+                                key={link.to}
+                                to={link.to}
+                                className="hover:text-orange transition-colors font-medium whitespace-nowrap"
                             >
-                                Đăng xuất
-                            </Button>
-                        </div>
-                    ) : (
-                        <div className="flex items-center gap-3">
-                            <Link to="/login" state={{ mode: 'login' }}>
-                                <Button variant="ghost" size="sm" className="text-white hover:bg-white/10 hover:text-white font-medium">
-                                    Đăng nhập
-                                </Button>
+                                {link.label}
                             </Link>
+                        ))}
+                    </nav>
 
-                            <div className="h-6 w-px bg-white/20 mx-2 hidden md:block"></div>
-                            <Link to="/register" state={{ mode: 'register' }}>
-                                <Button variant="default" size="sm" className="bg-orange hover:bg-orange-hover text-white border-none shadow-lg shadow-orange/20 font-bold px-4">
+                    {/* User Menu - Desktop */}
+                    <nav className="hidden md:flex items-center gap-6">
+                        {isAuthenticated ? (
+                            <>
+                                <Link to="/profile" className="flex items-center gap-2 hover:text-orange transition-colors">
+                                    {user?.path_url ? (
+                                        <img
+                                            src={user.path_url}
+                                            alt={user.name || 'Avatar'}
+                                            className="w-8 h-8 rounded-full object-cover border-2 border-orange"
+                                        />
+                                    ) : (
+                                        <User className="h-5 w-5" />
+                                    )}
+                                    <span className="hidden lg:inline">{user?.name || user?.email}</span>
+                                </Link>
+                                {isAdmin && (
+                                    <Link to="/admin" className="px-4 py-2 bg-orange hover:bg-orange/90 rounded-lg font-medium transition-colors">
+                                        Admin Panel
+                                    </Link>
+                                )}
+                                <button
+                                    onClick={handleLogout}
+                                    className="flex items-center gap-2 hover:text-orange transition-colors"
+                                >
+                                    <LogOut className="h-5 w-5" />
+                                    <span className="hidden lg:inline">Đăng xuất</span>
+                                </button>
+                            </>
+                        ) : (
+                            <>
+                                <Link to="/login" className="hover:text-orange transition-colors">
+                                    Đăng nhập
+                                </Link>
+                                <Link to="/register" className="px-4 py-2 bg-orange hover:bg-orange/90 rounded-lg font-medium transition-colors">
                                     Đăng ký
-                                </Button>
-                            </Link>
-                        </div>
-                    )}
+                                </Link>
+                            </>
+                        )}
+                    </nav>
+
+                    {/* Mobile Menu Button */}
+                    <button
+                        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                        className="md:hidden p-2 hover:bg-white/10 rounded-lg transition-colors"
+                        aria-label="Toggle menu"
+                    >
+                        {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+                    </button>
                 </div>
+
+                {/* Mobile Navigation */}
+                {mobileMenuOpen && (
+                    <nav className="md:hidden py-4 border-t border-white/10 animate-in slide-in-from-top duration-200">
+                        <div className="flex flex-col gap-3">
+                            {/* Navigation Links */}
+                            {navLinks.map((link) => (
+                                <Link
+                                    key={link.to}
+                                    to={link.to}
+                                    className="px-4 py-3 hover:bg-white/10 rounded-lg transition-colors text-center font-medium"
+                                    onClick={closeMobileMenu}
+                                >
+                                    {link.label}
+                                </Link>
+                            ))}
+
+                            {/* Separator */}
+                            <div className="h-px bg-white/20 my-1"></div>
+
+                            {isAuthenticated ? (
+                                <>
+                                    <Link
+                                        to="/profile"
+                                        className="flex items-center gap-3 p-3 hover:bg-white/10 rounded-lg transition-colors"
+                                        onClick={closeMobileMenu}
+                                    >
+                                        {user?.path_url ? (
+                                            <img
+                                                src={user.path_url}
+                                                alt={user.name || 'Avatar'}
+                                                className="w-10 h-10 rounded-full object-cover border-2 border-orange flex-shrink-0"
+                                            />
+                                        ) : (
+                                            <User className="h-6 w-6 flex-shrink-0" />
+                                        )}
+                                        <div className="flex flex-col min-w-0 flex-1">
+                                            <span className="font-medium truncate">{user?.name || 'Tài khoản'}</span>
+                                            <span className="text-sm text-white/70 truncate">{user?.email}</span>
+                                        </div>
+                                    </Link>
+                                    {isAdmin && (
+                                        <Link
+                                            to="/admin"
+                                            className="px-4 py-3 bg-orange hover:bg-orange/90 rounded-lg font-medium transition-colors text-center"
+                                            onClick={closeMobileMenu}
+                                        >
+                                            Admin Panel
+                                        </Link>
+                                    )}
+                                    <button
+                                        onClick={handleLogout}
+                                        className="flex items-center justify-center gap-3 p-3 hover:bg-white/10 rounded-lg transition-colors"
+                                    >
+                                        <LogOut className="h-5 w-5" />
+                                        <span>Đăng xuất</span>
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <Link
+                                        to="/login"
+                                        className="px-4 py-3 hover:bg-white/10 rounded-lg transition-colors text-center font-medium"
+                                        onClick={closeMobileMenu}
+                                    >
+                                        Đăng nhập
+                                    </Link>
+                                    <Link
+                                        to="/register"
+                                        className="px-4 py-3 bg-orange hover:bg-orange/90 rounded-lg font-medium transition-colors text-center"
+                                        onClick={closeMobileMenu}
+                                    >
+                                        Đăng ký
+                                    </Link>
+                                </>
+                            )}
+                        </div>
+                    </nav>
+                )}
             </div>
         </header>
     );

@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { fetchProfile, removeFavorite, deleteHistory } from '@/services/api';
+import { fetchProfile, removeFavorite, deleteHistory, uploadAvatar, getFavorites, getHistory } from '@/services/api';
 import { Button } from '@/components/ui/button';
-import { Loader2, Trash2, Eye, History, ShieldCheck } from 'lucide-react';
+import { Loader2, Trash2, Eye, History, ShieldCheck, Upload, User } from 'lucide-react';
 
 interface FavoriteItem {
     id: string;
@@ -17,22 +17,33 @@ interface HistoryItem {
     from?: { label: string; coords?: { lat: number; lng: number } } | null;
     to?: { label: string; coords?: { lat: number; lng: number } } | null;
     createdAt?: string;
+    timestamp?: number;
 }
 
 export default function ProfilePage() {
-    const { user, isAuthenticated, isAdmin } = useAuth();
+    const { user, isAuthenticated, isAdmin, refreshUser } = useAuth();
+    const navigate = useNavigate();
     const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
     const [history, setHistory] = useState<HistoryItem[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [uploading, setUploading] = useState(false);
+    const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
 
     const loadProfile = async () => {
         if (!isAuthenticated) return;
         try {
             setLoading(true);
-            const data = await fetchProfile() as any;
-            setFavorites(data.favorites || []);
-            setHistory(data.history || []);
+            // Fetch user profile, favorites, and history separately
+            const [, favoritesData, historyData] = await Promise.all([
+                fetchProfile(),
+                getFavorites().catch(() => ({ favorites: [] })),
+                getHistory().catch(() => ({ history: [] }))
+            ]);
+
+            setFavorites((favoritesData as any).favorites || []);
+            setHistory((historyData as any).history || []);
+
             setError(null);
         } catch (err: any) {
             setError(err?.response?.data?.message || 'Không thể tải thông tin người dùng.');
@@ -45,10 +56,46 @@ export default function ProfilePage() {
         loadProfile();
     }, [isAuthenticated]);
 
-    const handleRemoveFavorite = async (routeId: string) => {
+    const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        // Validate file size (3MB)
+        if (file.size > 3 * 1024 * 1024) {
+            setError('File ảnh quá lớn. Kích thước tối đa 3MB.');
+            return;
+        }
+
+        // Validate file type
+        if (!['image/jpeg', 'image/jpg', 'image/png', 'image/webp'].includes(file.type)) {
+            setError('Chỉ chấp nhận file ảnh (JPG, PNG, WebP).');
+            return;
+        }
+
         try {
-            await removeFavorite(routeId);
-            setFavorites((prev) => prev.filter((fav) => fav.routeId !== routeId && fav.id !== routeId));
+            setUploading(true);
+            setError(null);
+            setUploadSuccess(null);
+
+            const data = await uploadAvatar(file);
+            setUploadSuccess(data.message || 'Upload ảnh thành công!');
+
+            // Refresh user data to update avatar
+            await refreshUser();
+
+            // Also reload profile favorites/history
+            await loadProfile();
+        } catch (err: any) {
+            setError(err?.response?.data?.message || 'Không thể upload ảnh. Vui lòng thử lại.');
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const handleRemoveFavorite = async (id: string) => {
+        try {
+            await removeFavorite(id);
+            setFavorites((prev) => prev.filter((fav) => fav.id !== id));
         } catch (err: any) {
             setError(err?.response?.data?.message || 'Không thể xoá lộ trình.');
         }
@@ -61,6 +108,28 @@ export default function ProfilePage() {
         } catch (err: any) {
             setError(err?.response?.data?.message || 'Không thể xoá lịch sử.');
         }
+    };
+
+    const handleHistoryClick = (item: HistoryItem) => {
+        // Navigate to home page with query parameters
+        const params = new URLSearchParams();
+
+        if (item.from?.label && item.from?.coords) {
+            params.set('fromLabel', item.from.label);
+            params.set('fromLat', item.from.coords.lat.toString());
+            params.set('fromLng', item.from.coords.lng.toString());
+        }
+
+        if (item.to?.label && item.to?.coords) {
+            params.set('toLabel', item.to.label);
+            params.set('toLat', item.to.coords.lat.toString());
+            params.set('toLng', item.to.coords.lng.toString());
+        }
+
+        // Add flag to indicate coming from history (for auto-scroll)
+        params.set('fromHistory', 'true');
+
+        navigate(`/?${params.toString()}`);
     };
 
     if (!isAuthenticated) {
@@ -84,25 +153,73 @@ export default function ProfilePage() {
 
     return (
         <div className="container mx-auto px-4 py-8 max-w-5xl space-y-8">
-            <header className="p-6 bg-navy text-white rounded-2xl shadow-lg flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                <div>
-                    <p className="text-orange text-sm font-semibold uppercase tracking-wider mb-1">Xin chào</p>
-                    <h1 className="text-3xl font-bold mb-1">{user?.name || user?.email}</h1>
-                    <p className="text-white/70 text-sm">{user?.email}</p>
-                </div>
-                <div className="flex items-center gap-3">
+            <header className="p-6 bg-navy text-white rounded-2xl shadow-lg">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+                    {/* Left: Avatar + Info */}
+                    <div className="flex items-center gap-6">
+                        {/* Avatar Preview */}
+                        <div className="relative">
+                            <div className="w-24 h-24 rounded-full overflow-hidden bg-white/10 flex items-center justify-center border-4 border-orange/30">
+                                {user?.path_url ? (
+                                    <img
+                                        src={user.path_url}
+                                        alt={user.name || 'Avatar'}
+                                        className="w-full h-full object-cover"
+                                    />
+                                ) : (
+                                    <User className="h-12 w-12 text-white/50" />
+                                )}
+                            </div>
+                            {/* Upload Button */}
+                            <label
+                                htmlFor="avatar-upload"
+                                className="absolute bottom-0 right-0 bg-orange hover:bg-orange/90 text-white p-2 rounded-full cursor-pointer shadow-lg transition-all"
+                                title="Thay đổi ảnh đại diện"
+                            >
+                                <Upload className="h-4 w-4" />
+                                <input
+                                    id="avatar-upload"
+                                    type="file"
+                                    accept="image/jpeg,image/jpg,image/png,image/webp"
+                                    onChange={handleAvatarUpload}
+                                    className="hidden"
+                                    disabled={uploading}
+                                />
+                            </label>
+                        </div>
+
+                        {/* User Info */}
+                        <div>
+                            <p className="text-orange text-sm font-semibold uppercase tracking-wider mb-1">Xin chào</p>
+                            <h1 className="text-3xl font-bold mb-1">{user?.name || user?.email}</h1>
+                            <p className="text-white/70 text-sm">{user?.email}</p>
+                            {uploading && (
+                                <p className="text-sm text-orange mt-2 flex items-center gap-2">
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    Đang upload...
+                                </p>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Right: Admin Link (only for admins) */}
                     {isAdmin && (
-                        <Link to="/admin/users">
-                            <Button variant="outline" className="text-white border-white/30 hover:bg-white/10 flex items-center gap-2">
-                                <ShieldCheck className="h-4 w-4" /> Quản trị người dùng
-                            </Button>
-                        </Link>
+                        <div className="flex items-center gap-3">
+                            <Link to="/admin/users">
+                                <Button variant="outline" className="text-white border-white/30 hover:bg-white/10 flex items-center gap-2">
+                                    <ShieldCheck className="h-4 w-4" /> Quản trị người dùng
+                                </Button>
+                            </Link>
+                        </div>
                     )}
-                    <Link to="/admin/bus-lines">
-                        <Button variant="ghost" className="text-white hover:bg-white/10">Trang quản lý tuyến</Button>
-                    </Link>
                 </div>
             </header>
+
+            {uploadSuccess && (
+                <p className="text-sm text-green-600 bg-green-50 p-3 rounded-lg border border-green-100">
+                    {uploadSuccess}
+                </p>
+            )}
 
             {error && <p className="text-sm text-red-600 bg-red-50 p-3 rounded-lg border border-red-100">{error}</p>}
 
@@ -131,7 +248,7 @@ export default function ProfilePage() {
                                             <p className="text-sm text-gray-500">Lưu lúc: {fav.savedAt ? new Date(fav.savedAt).toLocaleString() : '—'}</p>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                            <Link to={`/route/${fav.routeId}`}>
+                                            <Link to={`/saved-route/${fav.id}`}>
                                                 <Button variant="outline" size="sm" className="text-blue-600 border-blue-200 hover:bg-blue-50">
                                                     <Eye className="h-4 w-4 mr-1" /> Xem lại
                                                 </Button>
@@ -139,7 +256,7 @@ export default function ProfilePage() {
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
-                                                onClick={() => handleRemoveFavorite(fav.routeId)}
+                                                onClick={() => handleRemoveFavorite(fav.id)}
                                                 className="text-red-500 hover:bg-red-50 hover:text-red-600"
                                             >
                                                 <Trash2 className="h-4 w-4" />
@@ -164,15 +281,25 @@ export default function ProfilePage() {
                         ) : (
                             <ul className="space-y-3">
                                 {history.map((item) => (
-                                    <li key={item.id} className="flex items-start justify-between p-3 rounded-lg bg-gray-50 border border-gray-100">
-                                        <div>
-                                            <p className="font-semibold text-navy text-sm">{item.from?.label || 'Điểm đi'} → {item.to?.label || 'Điểm đến'}</p>
+                                    <li
+                                        key={item.id}
+                                        className="flex items-start justify-between p-3 rounded-lg bg-gray-50 border border-gray-100 hover:bg-white hover:shadow-md hover:border-orange/30 transition-all cursor-pointer group"
+                                        onClick={() => handleHistoryClick(item)}
+                                        title="Click để tìm lại lộ trình này"
+                                    >
+                                        <div className="flex-1">
+                                            <p className="font-semibold text-navy text-sm group-hover:text-orange transition-colors">
+                                                {item.from?.label || 'Điểm đi'} → {item.to?.label || 'Điểm đến'}
+                                            </p>
                                             <p className="text-xs text-gray-500">{item.createdAt ? new Date(item.createdAt).toLocaleString() : ''}</p>
                                         </div>
                                         <button
                                             type="button"
-                                            onClick={() => handleDeleteHistory(item.id)}
-                                            className="text-gray-400 hover:text-red-500"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDeleteHistory(item.id);
+                                            }}
+                                            className="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity ml-2"
                                             title="Xoá lịch sử"
                                         >
                                             <Trash2 className="h-4 w-4" />
