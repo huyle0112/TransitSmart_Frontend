@@ -1,12 +1,16 @@
 import { useState } from 'react';
 import useGeolocation from '@/hooks/useGeolocation';
-import { getNearbyStops } from '@/services/api';
+import { getNearbyStops, getWalkingRoute } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import { MapPin, Map as MapIcon, Info } from 'lucide-react';
 import WalkingRouteMap from './WalkingRouteMap';
 import StopDetailModal from './StopDetailModal';
 
-export default function NearbyStops() {
+interface NearbyStopsProps {
+    onSelectStop?: (stop: any) => void;
+}
+
+export default function NearbyStops({ onSelectStop }: NearbyStopsProps) {
     const { requestPosition, loading: geoLoading } = useGeolocation();
     const [stops, setStops] = useState<any[]>([]);
     const [origin, setOrigin] = useState<any>(null);
@@ -22,11 +26,20 @@ export default function NearbyStops() {
             const coords = await requestPosition();
             setLoading(true);
             const response = await getNearbyStops(coords) as any;
-            setStops(response.stops);
+
+            // Deduplicate stops by ID (just in case)
+            const uniqueStops: any[] = Array.from(
+                new Map(response.stops.map((stop: any) => [stop.id, stop])).values()
+            );
+
+            console.log('[DEBUG] API returned', response.stops.length, 'stops, unique:', uniqueStops.length);
+
+            setStops(uniqueStops);
             setOrigin(response.origin);
             setShowMap(true);
-            if (response.stops.length > 0) {
-                setSelectedStopId(response.stops[0].id);
+            if (uniqueStops.length > 0) {
+                setSelectedStopId(uniqueStops[0].id);
+                onSelectStop?.(uniqueStops[0]);
             }
         } catch (err: any) {
             setError(err.message || 'Không thể xác định vị trí của bạn lúc này.');
@@ -42,27 +55,26 @@ export default function NearbyStops() {
         // Fetch walking route on-demand for this stop
         if (origin && stopId) {
             try {
-                const response = await fetch(
-                    `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/api/route/walking-route/${stopId}?originLat=${origin.lat}&originLng=${origin.lng}`
-                );
-
-                if (response.ok) {
-                    const data = await response.json();
-
-                    // Update the stop with walking route data
-                    setStops(prevStops =>
-                        prevStops.map(stop =>
-                            stop.id === stopId
-                                ? {
-                                    ...stop,
-                                    walkingRoute: data.walkingRoute,
-                                    walkingDistance: data.walkingDistance,
-                                    walkingDuration: data.walkingDuration
-                                }
-                                : stop
-                        )
-                    );
+                const selected = stops.find(s => s.id === stopId);
+                if (selected) {
+                    onSelectStop?.(selected);
                 }
+
+                const data = await getWalkingRoute(stopId, origin.lat, origin.lng) as any;
+
+                // Update the stop with walking route data
+                setStops(prevStops =>
+                    prevStops.map(stop =>
+                        stop.id === stopId
+                            ? {
+                                ...stop,
+                                walkingRoute: data.walkingRoute,
+                                walkingDistance: data.walkingDistance,
+                                walkingDuration: data.walkingDuration
+                            }
+                            : stop
+                    )
+                );
             } catch (error) {
                 console.error('Failed to fetch walking route:', error);
                 // Silently fail - map will still show stops without route
@@ -131,32 +143,28 @@ export default function NearbyStops() {
                                     return (
                                         <li
                                             key={stop.id}
-                                            className={`p-3 rounded-lg transition-all cursor-pointer border-2 ${
-                                                isSelected 
-                                                    ? 'bg-green-50 border-green-400 shadow-sm' 
-                                                    : 'bg-white border-gray-100 hover:bg-gray-50 hover:border-gray-200'
-                                            }`}
+                                            className={`p-3 rounded-lg transition-all cursor-pointer border-2 ${isSelected
+                                                ? 'bg-green-50 border-green-400 shadow-sm'
+                                                : 'bg-white border-gray-100 hover:bg-gray-50 hover:border-gray-200'
+                                                }`}
                                             onClick={() => handleStopClick(stop.id)}
                                         >
                                             <div className="flex items-start gap-3">
                                                 {/* Order Number Badge */}
-                                                <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
-                                                    isSelected 
-                                                        ? 'bg-green-500 text-white' 
-                                                        : 'bg-gray-200 text-gray-700'
-                                                }`}>
+                                                <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${isSelected
+                                                    ? 'bg-green-500 text-white'
+                                                    : 'bg-gray-200 text-gray-700'
+                                                    }`}>
                                                     {stop.orderNumber || stop.sequenceNumber || 1}
                                                 </div>
 
                                                 <div className="flex-1 min-w-0">
                                                     {/* Stop Name */}
                                                     <div className="flex items-center gap-2 mb-1">
-                                                        <MapPin className={`h-4 w-4 flex-shrink-0 ${
-                                                            isSelected ? 'text-green-600' : 'text-gray-500'
-                                                        }`} />
-                                                        <strong className={`block truncate ${
-                                                            isSelected ? 'text-green-700' : 'text-gray-900'
-                                                        }`}>
+                                                        <MapPin className={`h-4 w-4 flex-shrink-0 ${isSelected ? 'text-green-600' : 'text-gray-500'
+                                                            }`} />
+                                                        <strong className={`block truncate ${isSelected ? 'text-green-700' : 'text-gray-900'
+                                                            }`}>
                                                             {stop.displayName || stop.name}
                                                         </strong>
                                                     </div>
@@ -185,6 +193,11 @@ export default function NearbyStops() {
                                                                             >
                                                                                 {route.name}
                                                                             </span>
+                                                                            {route.destinationName && (
+                                                                                <span className="text-[10px] text-gray-500 font-medium truncate max-w-[120px]" title={`Đi ${route.destinationName}`}>
+                                                                                    → {route.destinationName}
+                                                                                </span>
+                                                                            )}
                                                                         </div>
                                                                         <div className="flex items-center gap-2 text-gray-600">
                                                                             {route.nextArrivals && route.nextArrivals.slice(0, 2).map((time: number, idx: number) => (
@@ -252,4 +265,3 @@ export default function NearbyStops() {
         </section>
     );
 }
-
