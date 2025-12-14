@@ -45,7 +45,6 @@ export default function SimpleMapViewer({
     useEffect(() => {
         // Only initialize map once
         if (!mapInstanceRef.current && mapRef.current) {
-            // console.log('🗺️ Initializing map...');
 
             const positions = coordinates
                 .filter(point => point && point.coords)
@@ -111,32 +110,154 @@ export default function SimpleMapViewer({
                     const segment = segments[idx];
                     const isWalk = segment?.mode === 'walk';
 
+                    // Draw route polyline with better colors
                     const polyline = L.polyline(geometry, {
-                        color: isWalk ? '#10b981' : '#1f8eed',
-                        weight: isWalk ? 4 : 5,
-                        opacity: isWalk ? 0.7 : 0.8,
+                        color: isWalk ? '#10b981' : '#f97316', // Green for walk, Orange for bus
+                        weight: isWalk ? 4 : 6,
+                        opacity: isWalk ? 0.7 : 0.9,
                         dashArray: isWalk ? '10, 10' : undefined,
                     }).addTo(mapInstanceRef.current!);
 
                     layersRef.current.push(polyline);
+
+                    // Add markers for bus stops (boarding and alighting)
+                    if (!isWalk && segment) {
+                        // Boarding stop (green circle)
+                        if (segment.from_coordinates) {
+                            const boardingMarker = L.circleMarker(
+                                [segment.from_coordinates.lat, segment.from_coordinates.lng],
+                                {
+                                    radius: 8,
+                                    fillColor: '#10b981',
+                                    color: '#ffffff',
+                                    weight: 2,
+                                    opacity: 1,
+                                    fillOpacity: 0.9
+                                }
+                            )
+                                .addTo(mapInstanceRef.current!)
+                                .bindPopup(`
+                                    <div style="font-family: sans-serif;">
+                                        <strong style="color: #10b981;">🚏 Lên xe</strong><br/>
+                                        <span style="font-weight: 600;">${segment.lineName || 'Bus'}</span><br/>
+                                        <span style="font-size: 0.9em;">${segment.fromStopName || 'Bus stop'}</span>
+                                    </div>
+                                `);
+                            layersRef.current.push(boardingMarker);
+                        }
+
+                        // Alighting stop (bus icon - orange)
+                        if (segment.to_coordinates) {
+                            const alightingMarker = L.marker(
+                                [segment.to_coordinates.lat, segment.to_coordinates.lng],
+                                {
+                                    icon: L.divIcon({
+                                        html: `
+                                            <div style="
+                                                background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+                                                border: 3px solid white;
+                                                border-radius: 50%;
+                                                width: 36px;
+                                                height: 36px;
+                                                display: flex;
+                                                align-items: center;
+                                                justify-content: center;
+                                                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                                            ">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                                    <path d="M8 6v6"/>
+                                                    <path d="M15 6v6"/>
+                                                    <path d="M2 12h19.6"/>
+                                                    <path d="M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2 0-.4-.1-.8-.2-1.2l-1.4-5C20.1 6.8 19.1 6 18 6H4a2 2 0 0 0-2 2v10h3"/>
+                                                    <circle cx="7" cy="18" r="2"/>
+                                                    <circle cx="16" cy="18" r="2"/>
+                                                </svg>
+                                            </div>
+                                        `,
+                                        className: 'bus-marker-icon',
+                                        iconSize: [36, 36],
+                                        iconAnchor: [18, 18],
+                                        popupAnchor: [0, -18]
+                                    })
+                                }
+                            )
+                                .addTo(mapInstanceRef.current!)
+                                .bindPopup(`
+                                    <div style="font-family: sans-serif;">
+                                        <strong style="color: #f97316;">🚏 Xuống xe</strong><br/>
+                                        <span style="font-weight: 600;">${segment.lineName || 'Bus'}</span><br/>
+                                        <span style="font-size: 0.9em;">${segment.toStopName || 'Bus stop'}</span>
+                                    </div>
+                                `);
+                            layersRef.current.push(alightingMarker);
+                        }
+                    }
                 });
             }
 
-            // Add markers
+            // Add markers with custom icons
             coordinates.forEach((point, index) => {
                 if (!point || !point.coords) return;
 
-                const marker = L.marker([point.coords.lat, point.coords.lng])
+                // Create custom icon based on index
+                let customIcon;
+                if (index === 0) {
+                    // Origin: UserRound icon (person)
+                    customIcon = L.divIcon({
+                        html: `
+                            <div style="
+                                background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+                                border: 3px solid white;
+                                border-radius: 50%;
+                                width: 44px;
+                                height: 44px;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                            ">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="12" cy="8" r="5"/>
+                                    <path d="M20 21a8 8 0 0 0-16 0"/>
+                                </svg>
+                            </div>
+                        `,
+                        className: 'custom-marker-icon',
+                        iconSize: [44, 44],
+                        iconAnchor: [22, 22], // Center of icon
+                        popupAnchor: [0, -22]
+                    });
+                } else {
+                    // Destination: CircleCheckBig icon (arrived/completed)
+                    customIcon = L.divIcon({
+                        html: `
+                            <div style="
+                                background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+                                border: 3px solid white;
+                                border-radius: 50%;
+                                width: 44px;
+                                height: 44px;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                            ">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                                    <path d="m9 11 3 3L22 4"/>
+                                </svg>
+                            </div>
+                        `,
+                        className: 'custom-marker-icon',
+                        iconSize: [44, 44],
+                        iconAnchor: [22, 22], // Center of icon
+                        popupAnchor: [0, -22]
+                    });
+                }
+
+                const marker = L.marker([point.coords.lat, point.coords.lng], { icon: customIcon })
                     .addTo(mapInstanceRef.current!)
                     .bindPopup(`<strong>${point.name || 'Stop'}</strong><br/>${point.type || ''}`);
-
-                // If it is the destination (index === 1), use CSS filter to change color to red
-                if (index === 1) {
-                    const el = marker.getElement();
-                    if (el) {
-                        el.style.filter = 'hue-rotate(150deg)'; // Rotates blue to red
-                    }
-                }
 
                 layersRef.current.push(marker);
             });
