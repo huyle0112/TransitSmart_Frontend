@@ -19,7 +19,7 @@ export const setAuthToken = (token: string | null) => {
 
 const unwrap = <T>(promise: Promise<{ data: T }>): Promise<T> => promise.then((res) => res.data);
 
-export const findRoutes = (payload: any) => unwrap(apiClient.post('/route/find', payload));
+export const findRoutes = (payload: any) => unwrap(apiClient.post('/path/find', payload));
 
 export const getRouteDetails = (routeId: string) =>
     unwrap(apiClient.get('/route/details', { params: { id: routeId } }));
@@ -97,11 +97,43 @@ export const deleteReview = (id: string) => unwrap(apiClient.delete(`/reviews/${
 export const getUsers = () => unwrap(apiClient.get('/admin/users'));
 export const getUsersAdmin = getUsers;
 
-export const updateUserRole = (id: string, role: string) =>
-    unwrap(apiClient.patch(`/admin/users/${id}/role`, { role }));
-
 export const deleteUser = (id: string) => unwrap(apiClient.delete(`/admin/users/${id}`));
 export const deleteUserAdmin = deleteUser;
+export const lockUser = (id: string) => unwrap(apiClient.patch(`/admin/users/${id}/lock`));
+export const unlockUser = (id: string) => unwrap(apiClient.patch(`/admin/users/${id}/unlock`));
+
+// Walking Route API
+export const getWalkingRoute = (stopId: string, originLat: number, originLng: number) =>
+    unwrap(apiClient.get(`/route/walking-route/${stopId}`, {
+        params: { originLat, originLng }
+    }));
+
+// Admin Statistics API
+export const getAdminStats = () => unwrap(apiClient.get('/admin/stats'));
+
+// Admin Reviews moderation
+export const getAdminReviews = (params?: { targetType?: string; targetId?: string }) =>
+    unwrap(apiClient.get('/admin/reviews', { params }));
+
+export const deleteReviewAdmin = (id: string) =>
+    unwrap(apiClient.delete(`/admin/reviews/${id}`));
+
+// ORS API - Get route geometry
+export const getORSDirections = async (params: {
+    from: { lat: number; lng: number };
+    to: { lat: number; lng: number };
+    mode: 'walk' | 'bus';
+}) => {
+    const profile = params.mode === 'walk' ? 'foot-walking' : 'driving-car';
+    const response = await apiClient.post('/ors/directions', {
+        coordinates: [
+            [params.from.lng, params.from.lat],
+            [params.to.lng, params.to.lat]
+        ],
+        profile
+    });
+    return response.data;
+};
 
 // Health check endpoint
 export const healthCheck = () =>
