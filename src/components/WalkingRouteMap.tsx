@@ -100,21 +100,25 @@ export default function WalkingRouteMap({
       const isSelected = stop.id === selectedStopId;
 
       // Create custom icon for stop
+      const stopIconSize = isSelected ? 24 : 20;
+      const stopIconColor = isSelected ? '#22c55e' : '#ef4444';
+      const stopIconShadow = isSelected ? '0 2px 8px rgba(0,0,0,0.4)' : '0 2px 8px rgba(0,0,0,0.3)';
+
       const stopIcon = L.divIcon({
         html: `
           <div style="
-            width: ${isSelected ? '24px' : '20px'};
-            height: ${isSelected ? '24px' : '20px'};
-            background: ${isSelected ? '#22c55e' : '#ef4444'};
+            width: ${stopIconSize}px;
+            height: ${stopIconSize}px;
+            background: ${stopIconColor};
             border: 3px solid white;
             border-radius: 50%;
-            box-shadow: 0 2px 8px rgba(0,0,0,${isSelected ? '0.4' : '0.3'});
+            box-shadow: ${stopIconShadow};
             cursor: pointer;
           "></div>
         `,
         className: 'stop-marker',
-        iconSize: [isSelected ? 24 : 20, isSelected ? 24 : 20],
-        iconAnchor: [isSelected ? 12 : 10, isSelected ? 12 : 10],
+        iconSize: [stopIconSize, stopIconSize],
+        iconAnchor: [stopIconSize / 2, stopIconSize / 2],
       });
 
       // Add stop marker
@@ -138,6 +142,7 @@ export default function WalkingRouteMap({
 
       // Draw walking route if available
       if (stop.walkingRoute && stop.walkingRoute.coordinates) {
+        console.log(`[MAP] Drawing route for stop ${stop.id} (selected: ${isSelected}), coords:`, stop.walkingRoute.coordinates.length);
         const routeColor = isSelected ? '#22c55e' : '#cbd5e1'; // Green for selected, lighter gray for others
         const routeWeight = isSelected ? 6 : 2;
         const routeOpacity = isSelected ? 0.9 : 0.4;

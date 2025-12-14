@@ -129,6 +129,7 @@ export default function StopSearchPage() {
     };
 
     const handleStopClick = async (stopId: string) => {
+        console.log('[StopSearch] handleStopClick called for stopId:', stopId);
         setSelectedStopId(stopId);
         if (origin && stopId) {
             const stop = stops.find(s => s.id === stopId);
@@ -136,6 +137,8 @@ export default function StopSearchPage() {
                 // ĐÃ SỬA: Bỏ truyền tham số stops
                 fetchWalkingRoute(stopId, origin);
             }
+        } else {
+            console.warn('[StopSearch] Missing origin or stopId:', { origin, stopId });
         }
     };
 

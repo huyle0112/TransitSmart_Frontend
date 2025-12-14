@@ -31,12 +31,12 @@ interface SimpleMapViewerProps {
 /**
  * Simple MapViewer using vanilla Leaflet to avoid React-Leaflet re-render issues
  */
-export default function SimpleMapViewer({ 
-    coordinates = [], 
-    geometries = [], 
-    segments = [], 
+export default function SimpleMapViewer({
+    coordinates = [],
+    geometries = [],
+    segments = [],
     onMapClick,
-    className 
+    className
 }: SimpleMapViewerProps) {
     const mapRef = useRef<HTMLDivElement>(null);
     const mapInstanceRef = useRef<L.Map | null>(null);
@@ -45,7 +45,7 @@ export default function SimpleMapViewer({
     useEffect(() => {
         // Only initialize map once
         if (!mapInstanceRef.current && mapRef.current) {
-            console.log('🗺️ Initializing map...');
+            // console.log('🗺️ Initializing map...');
 
             const positions = coordinates
                 .filter(point => point && point.coords)
@@ -81,11 +81,11 @@ export default function SimpleMapViewer({
 
         // Update map content when data changes
         if (mapInstanceRef.current) {
-            console.log('🗺️ Updating map content...', {
-                coordinates: coordinates.length,
-                geometries: geometries?.length || 0,
-                segments: segments?.length || 0
-            });
+            // console.log('🗺️ Updating map content...', {
+            //     coordinates: coordinates.length,
+            //     geometries: geometries?.length || 0,
+            //     segments: segments?.length || 0
+            // });
 
             // Clear existing layers
             layersRef.current.forEach(layer => {
@@ -120,10 +120,10 @@ export default function SimpleMapViewer({
 
                     layersRef.current.push(polyline);
                 });
-            } 
+            }
 
             // Add markers
-            coordinates.forEach((point, index) => { 
+            coordinates.forEach((point, index) => {
                 if (!point || !point.coords) return;
 
                 const marker = L.marker([point.coords.lat, point.coords.lng])
@@ -162,7 +162,7 @@ export default function SimpleMapViewer({
     useEffect(() => {
         return () => {
             if (mapInstanceRef.current) {
-                console.log('🗺️ Cleaning up map...');
+                // console.log('🗺️ Cleaning up map...');
                 try {
                     mapInstanceRef.current.remove();
                     mapInstanceRef.current = null;

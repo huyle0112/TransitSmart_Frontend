@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import FilterTabs from '@/components/FilterTabs';
 import RouteSummaryCard from '@/components/RouteSummaryCard';
-import { findRoutes, saveFavorite } from '@/services/api';
+import { findRoutes, saveFavorite, saveSearchHistory } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
 
@@ -49,6 +49,16 @@ export default function SearchResultsPage() {
                     setRoutes(response.routes);
                     setSummary({ from: response.from, to: response.to });
                 }
+
+                // Ghi lại lịch sử tìm kiếm cho người dùng đã đăng nhập
+                if (isAuthenticated) {
+                    saveSearchHistory({
+                        from: searchPayload.from,
+                        to: searchPayload.to,
+                    }).catch(() => {
+                        /* ignore history errors to keep UX smooth */
+                    });
+                }
             } catch (err: any) {
                 setError(
                     err?.response?.data?.message ||
@@ -60,7 +70,7 @@ export default function SearchResultsPage() {
         };
 
         runSearch();
-    }, [searchPayload]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [searchPayload, isAuthenticated]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const sortedRoutes = useMemo(() => {
         if (!routes.length) return [];

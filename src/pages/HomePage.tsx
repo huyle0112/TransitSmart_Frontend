@@ -20,7 +20,7 @@ const MAX_WIDTH = 600;
 export default function HomePage() {
     const { isAuthenticated } = useAuth();
     const { requestPosition, loading: locating } = useGeolocation();
-    
+
     // --- Refs ---
     const mainContentRef = useRef<HTMLDivElement>(null);
     const isResizing = useRef(false);
@@ -51,7 +51,7 @@ export default function HomePage() {
     const [resetKey, setResetKey] = useState(0);
 
     // --- Effects ---
-    
+
     // 1. Check window size cập nhật state isDesktop
     useEffect(() => {
         const checkScreen = () => setIsDesktop(window.innerWidth >= 768);
@@ -102,7 +102,7 @@ export default function HomePage() {
     const handleUseCurrentLocation = async () => {
         try {
             const coords = await requestPosition();
-            
+
             let newPlace = {
                 label: 'Vị trí của bạn',
                 fullName: 'Đang xác định địa chỉ...',
@@ -165,29 +165,103 @@ export default function HomePage() {
                 to: toPlace.coords,
             }) as any;
 
-            if (response.walkingRoute) {
-                setRoutes([{
-                    id: 'walking',
-                    title: 'Đi bộ',
-                    from: response.from,
-                    to: response.to,
-                    segments: [{
+            // Transform routes from /path/find API to match RouteSummaryCard format
+            if (response.routes && response.routes.length > 0) {
+                const transformedRoutes = response.routes.map((route: any) => {
+                    // Calculate total cost from segments
+                    const totalCost = route.segments.reduce((sum: number, seg: any) => {
+                        return sum + (seg.cost || 0);
+                    }, 0);
+
+                    // Transform segments to expected format
+                    const transformedSegments = route.segments.map((seg: any) => ({
+                        lineId: seg.lineId,
+                        lineName: seg.lineName,
+                        mode: seg.mode,
+                        duration: seg.duration_min || Math.round(seg.duration_sec / 60),
+                        cost: seg.cost || 0,
+                        from: seg.from_stop,
+                        to: seg.to_stop,
+                        fromStopName: seg.fromStopName,
+                        toStopName: seg.toStopName,
+                    }));
+
+                    // Calculate walking distance and time from origin to first stop (or destination if no segments)
+                    const originLat = fromPlace.coords.lat;
+                    const originLng = fromPlace.coords.lng;
+
+                    let walkToLat, walkToLng, walkToName;
+
+                    if (transformedSegments.length > 0) {
+                        // Walk to first bus stop
+                        walkToLat = route.origin_stop.lat;
+                        walkToLng = route.origin_stop.lon;
+                        walkToName = route.origin_stop.name;
+                    } else {
+                        // Walk directly to destination (no bus segments)
+                        walkToLat = route.destination_coordinates.lat;
+                        walkToLng = route.destination_coordinates.lng;
+                        walkToName = 'Điểm đến';
+                    }
+
+                    // Haversine distance calculation
+                    const toRad = (deg: number) => deg * (Math.PI / 180);
+                    const R = 6371; // Earth radius in km
+                    const dLat = toRad(walkToLat - originLat);
+                    const dLng = toRad(walkToLng - originLng);
+                    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                        Math.cos(toRad(originLat)) * Math.cos(toRad(walkToLat)) *
+                        Math.sin(dLng / 2) * Math.sin(dLng / 2);
+                    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                    const distanceKm = R * c;
+                    const walkDurationMin = Math.round((distanceKm * 1000) / 80); // 80 m/min walking speed
+
+                    // Create walking segment
+                    const walkingSegment = {
+                        lineId: 'walk',
+                        lineName: 'Đi bộ',
                         mode: 'walk',
-                        duration: response.walkingRoute.duration,
-                        from: response.from.id,
-                        to: response.to.id
-                    }],
-                    summary: {
-                        totalDuration: response.walkingRoute.duration,
-                        totalCost: 0,
-                        transfers: 0,
-                        startWalkTime: response.walkingRoute.duration
-                    },
-                    coordinates: [response.from, response.to]
-                }]);
+                        duration: walkDurationMin,
+                        cost: 0,
+                        from: 'origin',
+                        to: transformedSegments.length > 0 ? route.origin_stop.id : 'destination',
+                        fromStopName: fromPlace.label || 'Điểm xuất phát',
+                        toStopName: walkToName,
+                    };
+
+                    // Prepend walking segment to the beginning
+                    const allSegments = [walkingSegment, ...transformedSegments];
+
+                    return {
+                        id: route.route_id,
+                        title: route.summary || 'Lộ trình',
+                        from: {
+                            id: route.origin_stop.id,
+                            name: route.origin_stop.name,
+                            coords: {
+                                lat: route.origin_stop.lat,
+                                lng: route.origin_stop.lon
+                            }
+                        },
+                        to: {
+                            name: 'Điểm đến',
+                            coords: route.destination_coordinates
+                        },
+                        segments: allSegments,
+                        summary: {
+                            totalDuration: Math.round(route.details.total_time_sec / 60),
+                            totalCost: totalCost,
+                            transfers: route.details.transfers_count || 0,
+                            startWalkTime: walkDurationMin
+                        }
+                    };
+                });
+
+                setRoutes(transformedRoutes);
             } else {
-                setRoutes(response.routes);
+                setError('Không tìm thấy lộ trình phù hợp.');
             }
+
             // Nếu là Desktop thì scroll xuống, còn Mobile thì map đã ở trên rồi ko cần scroll
             if (isDesktop) handleScrollDown();
         } catch (err: any) {
@@ -219,26 +293,25 @@ export default function HomePage() {
     // Helper tạo class chung cho các ô input
     const getContainerClass = (field: 'from' | 'to') => {
         const isActive = activeField === field;
-        return `flex items-center rounded-lg border-2 transition-colors relative ${
-            isActive ? 'border-orange bg-orange/5 ring-1 ring-orange' : 'border-transparent bg-gray-50 hover:bg-gray-100'
-        }`;
+        return `flex items-center rounded-lg border-2 transition-colors relative ${isActive ? 'border-orange bg-orange/5 ring-1 ring-orange' : 'border-transparent bg-gray-50 hover:bg-gray-100'
+            }`;
     };
 
     return (
         <div className="flex flex-col min-h-screen">
-            
+
             {/* --- VIDEO HERO SECTION --- */}
             <VideoHero onStartClick={handleScrollDown} />
 
             {/* --- GIAO DIỆN BẢN ĐỒ & TÌM KIẾM --- */}
-            <div 
-                ref={mainContentRef} 
+            <div
+                ref={mainContentRef}
                 // Flex-col cho mobile (dọc), md:flex-row cho desktop (ngang)
                 className="flex flex-col md:flex-row h-[calc(100vh-64px)] relative border-b border-gray-200 bg-white scroll-mt-16"
             >
                 {/* --- KHỐI 1: SIDEBAR TÌM KIẾM --- */}
                 {/* Mobile: Order 2 (nằm dưới map). Desktop: Order 1 (nằm bên trái) */}
-                <div 
+                <div
                     className="bg-white border-r border-gray-200 flex flex-col z-10 shadow-xl flex-shrink-0 order-2 md:order-1 w-full md:w-auto
                         max-h-[50vh] overflow-y-auto md:max-h-none"
                     style={isDesktop ? { width: sidebarWidth } : {}}
@@ -252,12 +325,12 @@ export default function HomePage() {
                                 </Button>
                             )}
                         </div>
-                        
+
                         <div className="space-y-3">
                             {/* --- INPUT ĐIỂM ĐI --- */}
                             <div className={getContainerClass('from')}>
-                                <div 
-                                    className="flex-1 p-2 cursor-pointer" 
+                                <div
+                                    className="flex-1 p-2 cursor-pointer"
                                     onClick={() => setActiveField('from')}
                                 >
                                     <div className="flex items-center gap-2 mb-1">
@@ -324,7 +397,7 @@ export default function HomePage() {
                     {/* Danh sách kết quả */}
                     <div className="flex-1 overflow-y-auto p-4 bg-gray-50/50 min-h-[200px]">
                         {error && <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm border border-red-100 mb-4">{error}</div>}
-                        
+
                         <div className="space-y-4">
                             {routes.map((route, idx) => (
                                 <RouteSummaryCard
@@ -346,7 +419,7 @@ export default function HomePage() {
                 </div>
 
                 {/* --- KHỐI 2: RESIZER BAR (Chỉ hiện Desktop) --- */}
-                <div 
+                <div
                     className="hidden md:flex w-1.5 bg-gray-200 hover:bg-orange cursor-col-resize z-20 items-center justify-center transition-colors group order-2"
                     onMouseDown={startResizing}
                 >
@@ -365,7 +438,7 @@ export default function HomePage() {
                             onMapClick={handleMapClick}
                         />
                     </div>
-                    
+
                     {/* Thông báo Floating khi đang chọn điểm */}
                     {activeField && (
                         <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur px-3 py-1.5 md:px-4 md:py-2 rounded-full shadow-lg border border-orange z-[1000] text-xs md:text-sm font-medium text-orange flex items-center animate-bounce whitespace-nowrap">
