@@ -175,7 +175,7 @@ export default function BusRouteMap({ stops }: BusRouteMapProps) {
         .addTo(map);
 
       // Interaction Events
-      stopMarker.on('mouseover', (e: L.LeafletMouseEvent) => {
+      stopMarker.on('mouseover', () => {
         // Calculate pixel position for tooltip
         const point = map.latLngToContainerPoint([stop.lat, stop.lng]);
         setHoveredStop({

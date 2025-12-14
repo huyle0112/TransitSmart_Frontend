@@ -7,7 +7,7 @@ interface StopPreviewCardProps {
   style?: React.CSSProperties;
 }
 
-export default function StopPreviewCard({ stopName, onClose, style }: StopPreviewCardProps) {
+export default function StopPreviewCard({ stopName, style }: StopPreviewCardProps) {
   // varied data pool
   const SPOT_POOL = [
     { name: '☕ Highlight Coffee', dist: '50m' },
