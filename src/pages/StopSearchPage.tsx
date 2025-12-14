@@ -59,13 +59,21 @@ export default function StopSearchPage() {
         const uniqueMap = new Map();
         
         rawStops.forEach((stop: any) => {
-            const key = `${stop.name?.trim()}_${stop.coords?.lat?.toFixed(5)}_${stop.coords?.lng?.toFixed(5)}`;
+            const key = `${stop.coords?.lat?.toFixed(5)}_${stop.coords?.lng?.toFixed(5)}`;
             if (!uniqueMap.has(key)) {
                 uniqueMap.set(key, stop);
             }
         });
 
         return Array.from(uniqueMap.values());
+    };
+
+    // Helper: Hàm đánh số 
+    const reindexStops = (stopsList: any[]) => {
+        return stopsList.map((stop, index) => ({
+            ...stop,
+            orderNumber: index + 1 
+        }));
     };
 
     const handleFindNearby = async () => {
@@ -78,13 +86,15 @@ export default function StopSearchPage() {
 
             const response = await getNearbyStops(coords) as any;
             const uniqueStops = deduplicateStops(response.stops);
+            const reindexedStops = reindexStops(uniqueStops);
 
-            setStops(uniqueStops);
+            setStops(reindexedStops);
             setOrigin(response.origin);
             setHasSearched(true);
 
-            if (uniqueStops.length > 0) {
-                const firstStopId = (uniqueStops[0] as any).id;
+            // Auto-select first stop
+            if (reindexedStops.length > 0) {
+                const firstStopId = (reindexedStops[0] as any).id;
                 setSelectedStopId(firstStopId);
                 fetchWalkingRoute(firstStopId, response.origin);
             }
@@ -114,14 +124,18 @@ export default function StopSearchPage() {
 
             const coords = { lat, lng };
             const response = await getNearbyStops(coords) as any;
-            const uniqueStops = deduplicateStops(response.stops);
 
-            setStops(uniqueStops);
+            // 1. Lọc trùng
+            const uniqueStops = deduplicateStops(response.stops);
+            // 2. Đánh số lại (1, 2, 3...)
+            const reindexedStops = reindexStops(uniqueStops);
+
+            setStops(reindexedStops);
             setOrigin(response.origin);
             setHasSearched(true);
 
-            if (uniqueStops.length > 0) {
-                const firstStopId = (uniqueStops[0] as any).id;
+            if (reindexedStops.length > 0) {
+                const firstStopId = (reindexedStops[0] as any).id;
                 setSelectedStopId(firstStopId);
                 fetchWalkingRoute(firstStopId, response.origin);
             }
@@ -175,10 +189,6 @@ export default function StopSearchPage() {
                     
                     {/* Search Controls */}
                     <div className="w-full md:w-auto md:min-w-[500px] flex gap-2">
-                        {/* FIX LỖI HIỂN THỊ TẠI ĐÂY:
-                           Thêm 'z-50' để container này nổi lên trên bản đồ (vốn nằm ở div phía sau).
-                           Các class cũ: relative, bg-gray-50, ... vẫn giữ nguyên.
-                        */}
                         <div className="flex-1 flex items-center bg-gray-50 border-2 border-transparent hover:bg-gray-100 rounded-lg transition-all focus-within:bg-orange/5 focus-within:border-orange focus-within:ring-1 focus-within:ring-orange relative z-50">
                             <div className="flex-1">
                                 <PlaceAutocomplete
@@ -224,7 +234,6 @@ export default function StopSearchPage() {
                 
                 {/* Left Column: Map */}
                 <div className="lg:col-span-2 space-y-6">
-                    {/* Map Container có z-index thấp hơn (mặc định 0) */}
                     <div className={`${cardClass} h-[500px] relative z-0`}>
                         {hasSearched && origin ? (
                             <WalkingRouteMap
@@ -287,13 +296,13 @@ export default function StopSearchPage() {
                                         }`}
                                     >
                                         <div className="flex items-start gap-3">
-                                            {/* Badge Number */}
+                                            {/* Badge Number: Hiển thị orderNumber mới đã re-index */}
                                             <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs transition-colors ${
                                                 isSelected
                                                     ? 'bg-orange text-white'
                                                     : 'bg-gray-100 text-gray-500 group-hover:bg-gray-200'
                                             }`}>
-                                                {stop.orderNumber || stop.sequenceNumber || 1}
+                                                {stop.orderNumber}
                                             </div>
 
                                             <div className="flex-1 min-w-0">
