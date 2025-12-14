@@ -29,7 +29,6 @@ export default function StopSearchPage() {
         setError(null);
     };
 
-    // ĐÃ SỬA: Xóa tham số 'currentStops' không dùng đến
     const fetchWalkingRoute = async (stopId: string, originCoords: any) => {
         try {
             const url = `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/api/route/walking-route/${stopId}?originLat=${originCoords.lat}&originLng=${originCoords.lng}`;
@@ -55,6 +54,28 @@ export default function StopSearchPage() {
         }
     };
 
+    // Helper: Hàm lọc trùng lặp bến xe mạnh mẽ
+    const deduplicateStops = (rawStops: any[]) => {
+        const uniqueMap = new Map();
+        
+        rawStops.forEach((stop: any) => {
+            // Tạo composite key: Tên + Lat + Lng
+            // Sử dụng toFixed(5) để làm tròn tọa độ, tránh lệch số thập phân nhỏ
+            const key = `${stop.name?.trim()}_${stop.coords?.lat?.toFixed(5)}_${stop.coords?.lng?.toFixed(5)}`;
+            
+            // Nếu key chưa tồn tại thì thêm vào map. 
+            // Nếu đã tồn tại, ta giữ lại cái đầu tiên (thường là cái chính xác hơn hoặc ngẫu nhiên)
+            if (!uniqueMap.has(key)) {
+                uniqueMap.set(key, stop);
+            } else {
+                // (Tùy chọn) Merge thông tin nếu cần, ví dụ gộp danh sách tuyến bus
+                // Ở đây giữ logic đơn giản là lấy bến đầu tiên tìm thấy
+            }
+        });
+
+        return Array.from(uniqueMap.values());
+    };
+
     const handleFindNearby = async () => {
         try {
             setError(null);
@@ -65,9 +86,8 @@ export default function StopSearchPage() {
 
             const response = await getNearbyStops(coords) as any;
 
-            const uniqueStops = Array.from(
-                new Map(response.stops.map((stop: any) => [stop.id, stop])).values()
-            );
+            // ĐÃ SỬA: Sử dụng hàm lọc trùng mới thay vì chỉ lọc theo ID
+            const uniqueStops = deduplicateStops(response.stops);
 
             setStops(uniqueStops);
             setOrigin(response.origin);
@@ -77,7 +97,6 @@ export default function StopSearchPage() {
             if (uniqueStops.length > 0) {
                 const firstStopId = (uniqueStops[0] as any).id;
                 setSelectedStopId(firstStopId);
-                // ĐÃ SỬA: Bỏ truyền tham số uniqueStops
                 fetchWalkingRoute(firstStopId, response.origin);
             }
         } catch (err: any) {
@@ -107,9 +126,8 @@ export default function StopSearchPage() {
             const coords = { lat, lng };
             const response = await getNearbyStops(coords) as any;
 
-            const uniqueStops = Array.from(
-                new Map(response.stops.map((stop: any) => [stop.id, stop])).values()
-            );
+            // ĐÃ SỬA: Sử dụng hàm lọc trùng mới thay vì chỉ lọc theo ID
+            const uniqueStops = deduplicateStops(response.stops);
 
             setStops(uniqueStops);
             setOrigin(response.origin);
@@ -118,7 +136,6 @@ export default function StopSearchPage() {
             if (uniqueStops.length > 0) {
                 const firstStopId = (uniqueStops[0] as any).id;
                 setSelectedStopId(firstStopId);
-                // ĐÃ SỬA: Bỏ truyền tham số uniqueStops
                 fetchWalkingRoute(firstStopId, response.origin);
             }
         } catch (err: any) {
@@ -129,16 +146,12 @@ export default function StopSearchPage() {
     };
 
     const handleStopClick = async (stopId: string) => {
-        console.log('[StopSearch] handleStopClick called for stopId:', stopId);
         setSelectedStopId(stopId);
         if (origin && stopId) {
             const stop = stops.find(s => s.id === stopId);
             if (!stop?.walkingRoute) {
-                // ĐÃ SỬA: Bỏ truyền tham số stops
                 fetchWalkingRoute(stopId, origin);
             }
-        } else {
-            console.warn('[StopSearch] Missing origin or stopId:', { origin, stopId });
         }
     };
 
