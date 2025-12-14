@@ -32,7 +32,7 @@ export default function AuthLayout() {
                 <div className="relative z-10 flex flex-col justify-between p-12 text-white w-full">
                     {/* Logo */}
                     <Link to="/" className="flex items-center gap-3 group">
-                        <img src="../public/assets/web-icon/web-icon.png" alt="" className="w-12 h-12" />
+                        <img src="/assets/web-icon/web-icon.png" alt="TransitSmart Logo" className="w-12 h-12" />
                         <span className="text-2xl font-bold tracking-tight">
                             Transit<span className="text-orange">Smart</span>
                         </span>
