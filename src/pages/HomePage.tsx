@@ -49,6 +49,7 @@ export default function HomePage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [resetKey, setResetKey] = useState(0);
+    const [selectedFilter, setSelectedFilter] = useState<'fastest' | 'fewest_transfers' | 'least_walking'>('fastest');
 
     // --- Effects ---
 
@@ -168,92 +169,47 @@ export default function HomePage() {
             // Transform routes from /path/find API to match RouteSummaryCard format
             if (response.routes && response.routes.length > 0) {
                 const transformedRoutes = response.routes.map((route: any) => {
-                    // Calculate total cost from segments
-                    const totalCost = route.segments.reduce((sum: number, seg: any) => {
-                        return sum + (seg.cost || 0);
-                    }, 0);
-
-                    // Transform segments to expected format
+                    // Transform segments to expected format (backend already includes walking segment)
                     const transformedSegments = route.segments.map((seg: any) => ({
-                        lineId: seg.lineId,
-                        lineName: seg.lineName,
+                        lineId: seg.lineId || 'walk',
+                        lineName: seg.lineName || 'Đi bộ',
                         mode: seg.mode,
-                        duration: seg.duration_min || Math.round(seg.duration_sec / 60),
-                        cost: seg.cost || 0,
-                        from: seg.from_stop,
+                        duration: seg.duration_min || Math.ceil((seg.duration_sec || 0) / 60),
+                        cost: seg.fare || 0,
+                        from: seg.from_stop || 'origin',
                         to: seg.to_stop,
-                        fromStopName: seg.fromStopName,
+                        fromStopName: seg.fromStopName || (seg.from_coordinates ? fromPlace.label || 'Điểm xuất phát' : ''),
                         toStopName: seg.toStopName,
+                        // Keep coordinates for ORS geometry fetching
+                        from_coordinates: seg.from_coordinates,
+                        to_coordinates: seg.to_coordinates,
+                        waiting_time_sec: seg.waiting_time_sec
                     }));
-
-                    // Calculate walking distance and time from origin to first stop (or destination if no segments)
-                    const originLat = fromPlace.coords.lat;
-                    const originLng = fromPlace.coords.lng;
-
-                    let walkToLat, walkToLng, walkToName;
-
-                    if (transformedSegments.length > 0) {
-                        // Walk to first bus stop
-                        walkToLat = route.origin_stop.lat;
-                        walkToLng = route.origin_stop.lon;
-                        walkToName = route.origin_stop.name;
-                    } else {
-                        // Walk directly to destination (no bus segments)
-                        walkToLat = route.destination_coordinates.lat;
-                        walkToLng = route.destination_coordinates.lng;
-                        walkToName = 'Điểm đến';
-                    }
-
-                    // Haversine distance calculation
-                    const toRad = (deg: number) => deg * (Math.PI / 180);
-                    const R = 6371; // Earth radius in km
-                    const dLat = toRad(walkToLat - originLat);
-                    const dLng = toRad(walkToLng - originLng);
-                    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                        Math.cos(toRad(originLat)) * Math.cos(toRad(walkToLat)) *
-                        Math.sin(dLng / 2) * Math.sin(dLng / 2);
-                    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-                    const distanceKm = R * c;
-                    const walkDurationMin = Math.round((distanceKm * 1000) / 80); // 80 m/min walking speed
-
-                    // Create walking segment
-                    const walkingSegment = {
-                        lineId: 'walk',
-                        lineName: 'Đi bộ',
-                        mode: 'walk',
-                        duration: walkDurationMin,
-                        cost: 0,
-                        from: 'origin',
-                        to: transformedSegments.length > 0 ? route.origin_stop.id : 'destination',
-                        fromStopName: fromPlace.label || 'Điểm xuất phát',
-                        toStopName: walkToName,
-                    };
-
-                    // Prepend walking segment to the beginning
-                    const allSegments = [walkingSegment, ...transformedSegments];
 
                     return {
                         id: route.route_id,
                         title: route.summary || 'Lộ trình',
+                        filters: route.filters || [], // Filter tags from backend
                         from: {
-                            id: route.origin_stop.id,
-                            name: route.origin_stop.name,
+                            id: route.origin_stop?.id,
+                            name: route.origin_stop?.name,
                             coords: {
-                                lat: route.origin_stop.lat,
-                                lng: route.origin_stop.lon
+                                lat: route.origin_stop?.lat,
+                                lng: route.origin_stop?.lon
                             }
                         },
                         to: {
                             name: 'Điểm đến',
                             coords: route.destination_coordinates
                         },
-                        segments: allSegments,
+                        segments: transformedSegments, // Use backend segments (includes walking)
                         summary: {
-                            totalDuration: Math.round(route.details.total_time_sec / 60),
-                            totalCost: totalCost,
-                            transfers: route.details.transfers_count || 0,
-                            startWalkTime: walkDurationMin
-                        }
+                            totalDuration: Math.ceil((route.details?.total_time_sec || 0) / 60),
+                            totalCost: route.details?.total_fare || 0, // Use backend total_fare
+                            transfers: route.details?.transfers_count || 0,
+                            startWalkTime: Math.ceil((route.details?.walking_time_sec || 0) / 60)
+                        },
+                        details: route.details // Pass through for RouteSummaryCard
                     };
                 });
 
@@ -398,15 +354,90 @@ export default function HomePage() {
                     <div className="flex-1 overflow-y-auto p-4 bg-gray-50/50 min-h-[200px]">
                         {error && <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm border border-red-100 mb-4">{error}</div>}
 
+                        {/* Filter button group - only show if there are routes */}
+                        {routes.length > 0 && (
+                            <div className="mb-4">
+                                <div className="inline-flex rounded-lg border border-orange overflow-hidden w-full max-w-md">
+                                    <button
+                                        onClick={() => setSelectedFilter('fastest')}
+                                        className={`flex-1 px-4 py-2 text-xs font-semibold transition-all border-r border-orange ${selectedFilter === 'fastest'
+                                            ? 'bg-orange text-white'
+                                            : 'bg-white text-orange hover:bg-orange/10'
+                                            }`}
+                                    >
+                                        Nhanh nhất
+                                    </button>
+                                    <button
+                                        onClick={() => setSelectedFilter('fewest_transfers')}
+                                        className={`flex-1 px-4 py-2 text-xs font-semibold transition-all border-r border-orange ${selectedFilter === 'fewest_transfers'
+                                            ? 'bg-orange text-white'
+                                            : 'bg-white text-orange hover:bg-orange/10'
+                                            }`}
+                                    >
+                                        Ít chuyển tuyến
+                                    </button>
+                                    <button
+                                        onClick={() => setSelectedFilter('least_walking')}
+                                        className={`flex-1 px-4 py-2 text-xs font-semibold transition-all ${selectedFilter === 'least_walking'
+                                            ? 'bg-orange text-white'
+                                            : 'bg-white text-orange hover:bg-orange/10'
+                                            }`}
+                                    >
+                                        Ít đi bộ
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
                         <div className="space-y-4">
-                            {routes.map((route, idx) => (
-                                <RouteSummaryCard
-                                    key={idx}
-                                    route={route}
-                                    highlight={idx === 0}
-                                    onSaveFavorite={isAuthenticated ? (id) => saveFavorite({ routeId: id }) : undefined}
-                                />
-                            ))}
+                            {routes
+                                .slice() // Create a copy to avoid mutating original array
+                                .sort((a, b) => {
+                                    // Check if routes are walking-only (all segments are walking)
+                                    const aIsWalkOnly = a.segments?.every((seg: any) => seg.mode === 'walk') ?? false;
+                                    const bIsWalkOnly = b.segments?.every((seg: any) => seg.mode === 'walk') ?? false;
+
+                                    // Always put walking-only routes at the bottom
+                                    if (aIsWalkOnly && !bIsWalkOnly) return 1;
+                                    if (!aIsWalkOnly && bIsWalkOnly) return -1;
+
+                                    // If both are walking-only or both are not, sort based on selected filter
+                                    if (selectedFilter === 'fastest') {
+                                        const aDuration = a.summary?.totalDuration ?? Infinity;
+                                        const bDuration = b.summary?.totalDuration ?? Infinity;
+                                        if (aDuration !== bDuration) {
+                                            return aDuration - bDuration;
+                                        }
+                                        // Tie-breaker: fewer transfers is better
+                                        return (a.summary?.transfers ?? 0) - (b.summary?.transfers ?? 0);
+                                    } else if (selectedFilter === 'fewest_transfers') {
+                                        const aTransfers = a.summary?.transfers ?? Infinity;
+                                        const bTransfers = b.summary?.transfers ?? Infinity;
+                                        if (aTransfers !== bTransfers) {
+                                            return aTransfers - bTransfers;
+                                        }
+                                        // Tie-breaker: faster is better
+                                        return (a.summary?.totalDuration ?? Infinity) - (b.summary?.totalDuration ?? Infinity);
+                                    } else if (selectedFilter === 'least_walking') {
+                                        // Use total walking time from route details (in seconds, convert to minutes)
+                                        const aWalkTime = a.details?.walking_time_sec ?? Infinity;
+                                        const bWalkTime = b.details?.walking_time_sec ?? Infinity;
+                                        if (aWalkTime !== bWalkTime) {
+                                            return aWalkTime - bWalkTime;
+                                        }
+                                        // Tie-breaker: faster is better
+                                        return (a.summary?.totalDuration ?? Infinity) - (b.summary?.totalDuration ?? Infinity);
+                                    }
+                                    return 0;
+                                })
+                                .map((route, idx) => (
+                                    <RouteSummaryCard
+                                        key={idx}
+                                        route={route}
+                                        highlight={idx === 0}
+                                        onSaveFavorite={isAuthenticated ? (id) => saveFavorite({ routeId: id }) : undefined}
+                                    />
+                                ))}
                         </div>
 
                         {!loading && routes.length === 0 && !error && (

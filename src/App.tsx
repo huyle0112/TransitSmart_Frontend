@@ -41,7 +41,7 @@ function App() {
                     <Route path="/lines" element={<BusLinesPage />} />
                     <Route path="/stops" element={<StopSearchPage />} />
                     <Route path="/stops/reviews" element={<StopsPage />} />
-                    <Route path="/route/:routeId" element={<RouteDetailPage />} />
+                    <Route path="/route-detail" element={<RouteDetailPage />} />
                     <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
                 </Route>
             </Routes>
