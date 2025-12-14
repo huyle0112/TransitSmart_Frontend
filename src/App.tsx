@@ -11,6 +11,7 @@ import ProfilePage from "./pages/ProfilePage";
 import AdminBusLinesPage from "./pages/admin/AdminBusLinesPage";
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 import StopsPage from "./pages/StopsPage";
+import AdminStopsPage from "./pages/admin/AdminStopsPage";
 import AdminUsersPage from "./pages/admin/AdminUsersPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
@@ -31,7 +32,7 @@ function App() {
                     <Route path="/admin" element={<AdminDashboardPage />} />
                     <Route path="/admin/users" element={<AdminUsersPage />} />
                     <Route path="/admin/routes" element={<AdminBusLinesPage />} />
-                    <Route path="/admin/stops" element={<StopsPage />} />
+                    <Route path="/admin/stops" element={<AdminStopsPage />} />
                 </Route>
 
                 <Route element={<MainLayout />}>
