@@ -47,3 +47,93 @@ body {
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
     background: #94a3b8;
 }
+
+/* 3D Bus Marker Styles */
+.bus-3d-marker {
+    background: transparent;
+    transition: transform 0.1s linear;
+    /* Smooth rotation */
+}
+
+.bus-3d-container {
+    width: 40px;
+    height: 40px;
+    position: relative;
+    /* transition: transform 0.3s linear; Handled by JS for bearing */
+}
+
+.bus-body {
+    width: 20px;
+    height: 40px;
+    background: linear-gradient(to bottom, #f97316, #ea580c);
+    /* Orange bus */
+    border-radius: 4px;
+    position: absolute;
+    top: 0;
+    left: 10px;
+    box-shadow: 0 0 15px rgba(249, 115, 22, 0.6), inset 0 0 5px rgba(255, 255, 255, 0.3);
+    z-index: 2;
+}
+
+.bus-roof {
+    width: 16px;
+    height: 30px;
+    background: rgba(255, 255, 255, 0.3);
+    position: absolute;
+    top: 5px;
+    left: 2px;
+    border-radius: 2px;
+}
+
+.bus-front {
+    width: 20px;
+    height: 4px;
+    background: #ffedd5;
+    position: absolute;
+    top: 0;
+    left: 0;
+    border-radius: 4px 4px 0 0;
+    box-shadow: 0 -2px 10px rgba(249, 115, 22, 0.8);
+    /* Headlights glow */
+}
+
+.bus-light-glow {
+    position: absolute;
+    top: -10px;
+    left: -10px;
+    width: 40px;
+    height: 40px;
+    background: radial-gradient(circle, rgba(249, 115, 22, 0.4) 0%, transparent 70%);
+    z-index: 1;
+    animation: pulse-glow 2s infinite;
+}
+
+@keyframes pulse-glow {
+    0% {
+        opacity: 0.5;
+        transform: scale(0.8);
+    }
+
+    50% {
+        opacity: 1;
+        transform: scale(1.2);
+    }
+
+    100% {
+        opacity: 0.5;
+        transform: scale(0.8);
+    }
+}
+
+/* Light Trail Animation */
+.bus-light-trail {
+    filter: drop-shadow(0 0 8px rgba(249, 115, 22, 0.8));
+    animation: dash-trail 1s linear infinite;
+    stroke-dasharray: 20;
+}
+
+@keyframes dash-trail {
+    to {
+        stroke-dashoffset: -40;
+    }
+}
