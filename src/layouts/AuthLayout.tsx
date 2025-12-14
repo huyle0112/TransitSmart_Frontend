@@ -1,25 +1,125 @@
-import { Outlet } from 'react-router-dom';
+import { Outlet, Link, useLocation } from 'react-router-dom';
+import { Bus, MapPin, Clock, TrendingUp } from 'lucide-react';
 
 export default function AuthLayout() {
+    const location = useLocation();
+    const isLogin = location.pathname === '/login' || location.state?.mode === 'login';
+
     return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-4">
-            <div className="mb-8 text-center">
-                <div className="w-12 h-12 bg-orange rounded-xl flex items-center justify-center font-bold text-white text-2xl shadow-md mx-auto mb-4">
-                    A
+        <div className="min-h-screen flex bg-gray-50">
+            {/* Left Panel - Branding */}
+            <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-navy via-navy to-blue-900 relative overflow-hidden">
+                {/* Background Pattern */}
+                <div className="absolute inset-0 opacity-10">
+                    <div className="absolute top-0 left-0 w-96 h-96 bg-orange rounded-full blur-3xl"></div>
+                    <div className="absolute bottom-0 right-0 w-96 h-96 bg-blue-400 rounded-full blur-3xl"></div>
                 </div>
-                <h1 className="text-2xl font-bold text-navy">Welcome Back</h1>
-                <p className="text-secondary mt-2">Please sign in to continue</p>
+
+                {/* Content */}
+                <div className="relative z-10 flex flex-col justify-between p-12 text-white w-full">
+                    {/* Logo */}
+                    <Link to="/" className="flex items-center gap-3 group">
+                        <div className="w-12 h-12 bg-orange rounded-xl flex items-center justify-center font-bold text-white text-2xl shadow-lg group-hover:bg-orange-hover transition-all duration-300 group-hover:scale-110">
+                            T
+                        </div>
+                        <span className="text-2xl font-bold tracking-tight">
+                            Transit<span className="text-orange">Smart</span>
+                        </span>
+                    </Link>
+
+                    {/* Main Content */}
+                    <div className="space-y-8">
+                        <div>
+                            <h1 className="text-4xl font-bold mb-4 leading-tight">
+                                Hệ thống giao thông<br />thông minh cho bạn
+                            </h1>
+                            <p className="text-lg text-gray-300 leading-relaxed">
+                                Tìm kiếm lộ trình xe buýt nhanh chóng, chính xác và tiện lợi nhất
+                            </p>
+                        </div>
+
+                        {/* Features */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="flex items-start gap-3 p-4 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20">
+                                <div className="w-10 h-10 bg-orange/20 rounded-lg flex items-center justify-center">
+                                    <Bus className="text-orange" size={20} />
+                                </div>
+                                <div>
+                                    <h3 className="font-semibold mb-1">Tìm tuyến</h3>
+                                    <p className="text-sm text-gray-300">Nhanh chóng</p>
+                                </div>
+                            </div>
+                            <div className="flex items-start gap-3 p-4 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20">
+                                <div className="w-10 h-10 bg-orange/20 rounded-lg flex items-center justify-center">
+                                    <MapPin className="text-orange" size={20} />
+                                </div>
+                                <div>
+                                    <h3 className="font-semibold mb-1">Điểm dừng</h3>
+                                    <p className="text-sm text-gray-300">Chính xác</p>
+                                </div>
+                            </div>
+                            <div className="flex items-start gap-3 p-4 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20">
+                                <div className="w-10 h-10 bg-orange/20 rounded-lg flex items-center justify-center">
+                                    <Clock className="text-orange" size={20} />
+                                </div>
+                                <div>
+                                    <h3 className="font-semibold mb-1">Thời gian</h3>
+                                    <p className="text-sm text-gray-300">Thực tế</p>
+                                </div>
+                            </div>
+                            <div className="flex items-start gap-3 p-4 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20">
+                                <div className="w-10 h-10 bg-orange/20 rounded-lg flex items-center justify-center">
+                                    <TrendingUp className="text-orange" size={20} />
+                                </div>
+                                <div>
+                                    <h3 className="font-semibold mb-1">Tối ưu</h3>
+                                    <p className="text-sm text-gray-300">Hành trình</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Footer */}
+                    <div className="text-sm text-gray-400">
+                        © {new Date().getFullYear()} TransitSmart. All rights reserved.
+                    </div>
+                </div>
             </div>
 
-            <div className="max-w-md w-full bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-                <div className="p-8">
-                    <Outlet />
+            {/* Right Panel - Auth Form */}
+            <div className="flex-1 lg:w-1/2 flex items-center justify-center p-8">
+                <div className="w-full max-w-md space-y-8">
+                    {/* Mobile Logo */}
+                    <div className="lg:hidden text-center mb-8">
+                        <Link to="/" className="inline-flex items-center gap-3 group">
+                            <div className="w-12 h-12 bg-orange rounded-xl flex items-center justify-center font-bold text-white text-2xl shadow-lg group-hover:bg-orange-hover transition-all duration-300">
+                                T
+                            </div>
+                            <span className="text-2xl font-bold tracking-tight text-navy">
+                                Transit<span className="text-orange">Smart</span>
+                            </span>
+                        </Link>
+                    </div>
+
+                    {/* Welcome Text */}
+                    <div className="text-center">
+                        <h2 className="text-3xl font-bold text-navy">
+                            {isLogin ? 'Chào mừng trở lại!' : 'Tạo tài khoản mới'}
+                        </h2>
+                        <p className="mt-2 text-gray-600">
+                            {isLogin
+                                ? 'Đăng nhập để tiếp tục sử dụng dịch vụ'
+                                : 'Đăng ký để trải nghiệm đầy đủ tính năng'
+                            }
+                        </p>
+                    </div>
+
+                    {/* Form Container */}
+                    <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
+                        <Outlet />
+                    </div>
                 </div>
             </div>
-
-            <footer className="mt-8 text-center text-sm text-gray-400">
-                &copy; {new Date().getFullYear()} My App. All rights reserved.
-            </footer>
         </div>
     );
 }

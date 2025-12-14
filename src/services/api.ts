@@ -135,6 +135,32 @@ export const getORSDirections = async (params: {
     return response.data;
 };
 
+// Walking Route API
+export const getWalkingRoute = (stopId: string, originLat: number, originLng: number) =>
+    unwrap(apiClient.get(`/route/walking-route/${stopId}`, {
+        params: { originLat, originLng }
+    }));
+
+// Admin Statistics API
+export const getAdminStats = () => unwrap(apiClient.get('/admin/stats'));
+
+// ORS API - Get route geometry
+export const getORSDirections = async (params: {
+    from: { lat: number; lng: number };
+    to: { lat: number; lng: number };
+    mode: 'walk' | 'bus';
+}) => {
+    const profile = params.mode === 'walk' ? 'foot-walking' : 'driving-car';
+    const response = await apiClient.post('/ors/directions', {
+        coordinates: [
+            [params.from.lng, params.from.lat],
+            [params.to.lng, params.to.lat]
+        ],
+        profile
+    });
+    return response.data;
+};
+
 // Health check endpoint
 export const healthCheck = () =>
     unwrap(apiClient.get('/health', { baseURL: API_BASE }));
