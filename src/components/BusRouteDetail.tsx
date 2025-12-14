@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { getBusLineDetails } from '@/services/api';
 import BusRouteSchedule from './BusRouteSchedule';
-import { Loader2, ArrowRightLeft, MapPin } from 'lucide-react';
+import { Loader2, ArrowRightLeft, MapPin, Map as MapIcon, List } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import ReviewSection from './ReviewSection';
+
+import BusRouteMap from './BusRouteMap';
 
 interface BusRouteDetailProps {
   routeName: string;
@@ -13,6 +14,7 @@ export default function BusRouteDetail({ routeName }: BusRouteDetailProps) {
   const [details, setDetails] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'forward' | 'backward'>('forward');
+  const [showMap, setShowMap] = useState(false);
 
   useEffect(() => {
     const fetchDetails = async () => {
@@ -88,17 +90,40 @@ export default function BusRouteDetail({ routeName }: BusRouteDetailProps) {
             </div>
 
             <div className="mb-6">
-              <h3 className="font-semibold mb-3 text-navy flex items-center">
-                <MapPin className="w-4 h-4 mr-2 text-orange" />
-                Danh sách trạm
-              </h3>
-              <div className="relative pl-4 border-l-2 border-gray-200 space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                {currentDirection.stops.map((stop: any) => (
-                  <div key={stop.id} className="relative">
-                    <div className="absolute -left-[21px] top-1.5 w-3 h-3 rounded-full bg-white border-2 border-orange" />
-                    <p className="text-sm font-medium text-gray-800">{stop.name}</p>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold text-navy flex items-center">
+                  <MapPin className="w-4 h-4 mr-2 text-orange" />
+                  Danh sách trạm
+                </h3>
+                <button
+                  onClick={() => setShowMap(!showMap)}
+                  className="flex items-center text-sm font-medium text-blue-600 hover:text-blue-700"
+                >
+                  {showMap ? <List className="w-4 h-4 mr-1" /> : <MapIcon className="w-4 h-4 mr-1" />}
+                  {showMap ? 'Xem danh sách' : 'Xem bản đồ'}
+                </button>
+              </div>
+
+              <div className={cn("transition-all duration-300", showMap ? "flex flex-col lg:flex-row h-[500px] gap-4" : "")}>
+                {showMap && (
+                  <div className="flex-1 rounded-lg overflow-hidden border border-gray-200">
+                    <BusRouteMap stops={currentDirection.stops} />
                   </div>
-                ))}
+                )}
+
+                <div className={cn(
+                  showMap ? "w-full lg:w-[350px] shrink-0" : "",
+                  "max-h-[300px] lg:max-h-[500px] overflow-y-auto pr-2 custom-scrollbar"
+                )}>
+                  <div className="relative ml-4 pl-4 border-l-2 border-gray-200 space-y-4">
+                    {currentDirection.stops.map((stop: any) => (
+                      <div key={stop.id} className="relative">
+                        <div className="absolute -left-[21px] top-1.5 w-3 h-3 rounded-full bg-white border-2 border-orange" />
+                        <p className="text-sm font-medium text-gray-800">{stop.name}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -107,11 +132,7 @@ export default function BusRouteDetail({ routeName }: BusRouteDetailProps) {
             </div>
 
             <div className="mt-6 border-t border-gray-100 pt-4">
-              <ReviewSection
-                targetType="route"
-                targetId={details.name}
-                title="Đánh giá tuyến buýt"
-              />
+
             </div>
           </>
         ) : (
