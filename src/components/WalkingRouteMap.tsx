@@ -142,7 +142,12 @@ export default function WalkingRouteMap({
 
       // Draw walking route if available
       if (stop.walkingRoute && stop.walkingRoute.coordinates) {
-        console.log(`[MAP] Drawing route for stop ${stop.id} (selected: ${isSelected}), coords:`, stop.walkingRoute.coordinates.length);
+        console.log(`[MAP] Drawing route for stop ${stop.id} (selected: ${isSelected})`);
+        console.log(`[MAP] Route data:`, stop.walkingRoute);
+        console.log(`[MAP] Coordinates count:`, stop.walkingRoute.coordinates.length);
+        console.log(`[MAP] First coordinate:`, stop.walkingRoute.coordinates[0]);
+        console.log(`[MAP] Last coordinate:`, stop.walkingRoute.coordinates[stop.walkingRoute.coordinates.length - 1]);
+
         const routeColor = isSelected ? '#22c55e' : '#cbd5e1'; // Green for selected, lighter gray for others
         const routeWeight = isSelected ? 6 : 2;
         const routeOpacity = isSelected ? 0.9 : 0.4;
@@ -162,7 +167,7 @@ export default function WalkingRouteMap({
         if (isSelected && stop.walkingRoute.coordinates.length > 0) {
           const midIndex = Math.floor(stop.walkingRoute.coordinates.length / 2);
           const midPoint = stop.walkingRoute.coordinates[midIndex];
-
+          // GeoJSON format is [lng, lat], Leaflet needs [lat, lng]
           const label = L.marker([midPoint[1], midPoint[0]], {
             icon: L.divIcon({
               html: `
