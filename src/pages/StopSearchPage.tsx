@@ -29,7 +29,8 @@ export default function StopSearchPage() {
         setError(null);
     };
 
-    const fetchWalkingRoute = async (stopId: string, currentStops: any[], originCoords: any) => {
+    // ĐÃ SỬA: Xóa tham số 'currentStops' không dùng đến
+    const fetchWalkingRoute = async (stopId: string, originCoords: any) => {
         try {
             const url = `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/api/route/walking-route/${stopId}?originLat=${originCoords.lat}&originLng=${originCoords.lng}`;
             const routeResponse = await fetch(url);
@@ -76,7 +77,8 @@ export default function StopSearchPage() {
             if (uniqueStops.length > 0) {
                 const firstStopId = (uniqueStops[0] as any).id;
                 setSelectedStopId(firstStopId);
-                fetchWalkingRoute(firstStopId, uniqueStops, response.origin);
+                // ĐÃ SỬA: Bỏ truyền tham số uniqueStops
+                fetchWalkingRoute(firstStopId, response.origin);
             }
         } catch (err: any) {
             setError(err.message || 'Không thể xác định vị trí của bạn lúc này.');
@@ -116,7 +118,8 @@ export default function StopSearchPage() {
             if (uniqueStops.length > 0) {
                 const firstStopId = (uniqueStops[0] as any).id;
                 setSelectedStopId(firstStopId);
-                fetchWalkingRoute(firstStopId, uniqueStops, response.origin);
+                // ĐÃ SỬA: Bỏ truyền tham số uniqueStops
+                fetchWalkingRoute(firstStopId, response.origin);
             }
         } catch (err: any) {
             setError(err.message || 'Không thể tìm điểm dừng gần vị trí này.');
@@ -130,7 +133,8 @@ export default function StopSearchPage() {
         if (origin && stopId) {
             const stop = stops.find(s => s.id === stopId);
             if (!stop?.walkingRoute) {
-                fetchWalkingRoute(stopId, stops, origin);
+                // ĐÃ SỬA: Bỏ truyền tham số stops
+                fetchWalkingRoute(stopId, origin);
             }
         }
     };
@@ -295,13 +299,12 @@ export default function StopSearchPage() {
                                                     <span>{Math.round(stop.walkingDuration || 0)} phút đi bộ</span>
                                                 </div>
 
-                                                {/* Bus Routes Tags - ĐÃ SỬA: Ép dùng màu Navy */}
+                                                {/* Bus Routes Tags */}
                                                 {stop.busRoutes && stop.busRoutes.length > 0 && (
                                                     <div className="mt-2 flex flex-wrap gap-1">
                                                         {stop.busRoutes.slice(0, 3).map((route: any) => (
                                                             <span 
                                                                 key={route.id}
-                                                                // Thay đổi: Thêm bg-navy và bỏ style inline để đồng bộ theme
                                                                 className="px-1.5 py-0.5 rounded text-[10px] font-bold text-white shadow-sm bg-navy"
                                                             >
                                                                 {route.name}
