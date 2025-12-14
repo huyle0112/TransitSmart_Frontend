@@ -20,8 +20,8 @@ export default function Footer() {
                     <div>
                         <h3 className="text-lg font-bold mb-4">Liên hệ</h3>
                         <p className="text-gray-300 text-sm">
-                            Email: contact@transitsmart.com<br />
-                            Phone: (84) 123 456 789
+                            Email: transitsmart@gmail.com<br />
+                            Phone: (84) 0326 312 501
                         </p>
                     </div>
                 </div>

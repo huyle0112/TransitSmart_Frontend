@@ -39,14 +39,16 @@ export const login = (payload: any) => unwrap(apiClient.post('/auth/login', payl
 
 export const getCurrentUser = () => unwrap(apiClient.get('/auth/me'));
 
-export const fetchProfile = () => unwrap(apiClient.get('/user/me'));
+export const fetchProfile = () => unwrap(apiClient.get('/auth/me'));
 
 export const getFavorites = () => unwrap(apiClient.get('/user/favorites'));
 
+export const getFavoriteById = (id: string) => unwrap(apiClient.get(`/user/favorites/${id}`));
+
 export const saveFavorite = (payload: any) => unwrap(apiClient.post('/user/favorites', payload));
 
-export const removeFavorite = (routeId: string) =>
-    unwrap(apiClient.delete('/user/favorites', { params: { id: routeId } }));
+export const removeFavorite = (id: string) =>
+    unwrap(apiClient.delete(`/user/favorites/${id}`));
 
 export const getHistory = () => unwrap(apiClient.get('/user/history'));
 
@@ -54,8 +56,30 @@ export const addHistory = (payload: any) => unwrap(apiClient.post('/user/history
 
 export const deleteHistory = (id: string) => unwrap(apiClient.delete(`/user/history/${id}`));
 
+// Upload avatar
+export const uploadAvatar = async (file: File) => {
+    const formData = new FormData();
+    formData.append('avatar', file);
+
+    const response = await apiClient.post('/upload/avatar', formData, {
+        headers: {
+            'Content-Type': 'multipart/form-data',
+        },
+    });
+
+    return response.data;
+};
+
 // Aliases for older imports
 export const saveSearchHistory = addHistory;
+
+// Save search history to Redis  
+export const saveSearchHistoryToRedis = (payload: {
+    fromLabel: string;
+    toLabel: string;
+    fromCoords: { lat: number; lng: number };
+    toCoords: { lat: number; lng: number };
+}) => unwrap(apiClient.post('/path/save-history', payload));
 
 // Stop endpoints
 export const getAllStops = () => unwrap(apiClient.get('/stop'));
@@ -128,6 +152,123 @@ export const getORSDirections = async (params: {
     });
     return response.data;
 };
+// Token refresh queue management
+let isRefreshing = false;
+let failedQueue: Array<{
+    resolve: (token: string) => void;
+    reject: (error: any) => void;
+}> = [];
+
+const processQueue = (error: any, token: string | null = null) => {
+    failedQueue.forEach((prom) => {
+        if (error) {
+            prom.reject(error);
+        } else {
+            prom.resolve(token!);
+        }
+    });
+    failedQueue = [];
+};
+
+// Response interceptor for automatic token refresh
+apiClient.interceptors.response.use(
+    (response) => response,
+    async (error) => {
+        const originalRequest = error.config;
+
+        // Skip refresh for auth endpoints
+        if (originalRequest.url?.includes('/auth/')) {
+            return Promise.reject(error);
+        }
+
+        // If error is 401 and we haven't retried yet
+        if (error.response?.status === 401 && !originalRequest._retry) {
+            if (isRefreshing) {
+                // Queue this request while another is refreshing
+                return new Promise((resolve, reject) => {
+                    failedQueue.push({ resolve, reject });
+                })
+                    .then((token) => {
+                        originalRequest.headers.Authorization = `Bearer ${token}`;
+                        return apiClient(originalRequest);
+                    })
+                    .catch((err) => Promise.reject(err));
+            }
+
+            originalRequest._retry = true;
+            isRefreshing = true;
+
+            try {
+                const refreshToken = localStorage.getItem('transit-auth-refresh');
+                if (!refreshToken) {
+                    throw new Error('No refresh token');
+                }
+
+                // Call refresh endpoint
+                const response = await apiClient.post('/auth/refresh', { refreshToken });
+                const { token: newAccessToken, refreshToken: newRefreshToken } = response.data;
+
+                // Update tokens in localStorage
+                const authData = JSON.parse(localStorage.getItem('transit-auth') || '{}');
+                authData.token = newAccessToken;
+                localStorage.setItem('transit-auth', JSON.stringify(authData));
+                localStorage.setItem('transit-auth-refresh', newRefreshToken);
+
+                // Update default header
+                setAuthToken(newAccessToken);
+
+                // Process queued requests
+                processQueue(null, newAccessToken);
+                isRefreshing = false;
+
+                // Retry original request
+                originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+                return apiClient(originalRequest);
+            } catch (refreshError) {
+                processQueue(refreshError, null);
+                isRefreshing = false;
+
+                // Clear tokens and redirect to login
+                localStorage.removeItem('transit-auth');
+                localStorage.removeItem('transit-auth-refresh');
+
+                // Only redirect if not already on login page
+                if (!window.location.pathname.includes('/login')) {
+                    window.location.href = '/login';
+                }
+
+                return Promise.reject(refreshError);
+            }
+        }
+
+        return Promise.reject(error);
+    }
+);
+
+// Logout API call
+export const logoutApi = async () => {
+    const refreshToken = localStorage.getItem('transit-auth-refresh');
+    if (refreshToken) {
+        try {
+            await apiClient.post('/auth/logout', { refreshToken });
+        } catch (error) {
+            console.error('Logout error:', error);
+        }
+    }
+};
+
+// Logout from all devices
+export const logoutAllDevices = async () => {
+    try {
+        await apiClient.post('/auth/logout-all');
+        localStorage.removeItem('transit-auth');
+        localStorage.removeItem('transit-auth-refresh');
+    } catch (error) {
+        console.error('Logout all devices error:', error);
+        throw error;
+    }
+};
+
 
 // Health check endpoint
 export const healthCheck = () =>

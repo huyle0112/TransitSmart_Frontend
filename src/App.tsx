@@ -6,6 +6,7 @@ import HomePage from "./pages/HomePage";
 import BusLinesPage from "./pages/BusLinesPage";
 import SearchResultsPage from "./pages/SearchResultsPage";
 import RouteDetailPage from "./pages/RouteDetailPage";
+import SavedRouteDetailPage from "./pages/SavedRouteDetailPage";
 import { AuthProvider } from "./contexts/AuthContext";
 import ProfilePage from "./pages/ProfilePage";
 import AdminBusLinesPage from "./pages/admin/AdminBusLinesPage";
@@ -43,6 +44,7 @@ function App() {
                     <Route path="/stops" element={<StopSearchPage />} />
                     <Route path="/stops/reviews" element={<StopsPage />} />
                     <Route path="/route-detail" element={<RouteDetailPage />} />
+                    <Route path="/saved-route/:id" element={<SavedRouteDetailPage />} />
                     <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
                 </Route>
             </Routes>

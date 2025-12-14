@@ -1,103 +1,51 @@
-import { useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
+import { useEffect, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import SimpleMapViewer from '@/components/SimpleMapViewer';
-import { saveFavorite, removeFavorite, getFavorites, getORSDirections } from '@/services/api';
+import { getFavoriteById, getORSDirections } from '@/services/api';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Heart, Clock, Coins, Repeat, PersonStanding, Bus, Footprints, CheckCircle } from 'lucide-react';
-import { useState } from 'react';
+import { ArrowLeft, Heart, Clock, Coins, Repeat, PersonStanding, Bus, Footprints, CheckCircle, Loader2 } from 'lucide-react';
 
-export default function RouteDetailPage() {
-    const location = useLocation();
+export default function SavedRouteDetailPage() {
+    const { id } = useParams();
     const navigate = useNavigate();
-    const { isAuthenticated } = useAuth();
+    const [route, setRoute] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
     const [toast, setToast] = useState<string | null>(null);
     const [geometries, setGeometries] = useState<any[]>([]);
     const [loadingGeometries, setLoadingGeometries] = useState(false);
-    const [isSaved, setIsSaved] = useState(false);
-    const [savedFavoriteId, setSavedFavoriteId] = useState<string | null>(null);
-    const [savingRoute, setSavingRoute] = useState(false);
 
-    // Get route from navigation state
-    const route = location.state?.route;
-
-    // Redirect back if no route data
+    // Fetch saved route on mount
     useEffect(() => {
-        if (!route) {
-            navigate(-1);
-        }
-    }, [route, navigate]);
-
-    // Check if route is already saved
-    useEffect(() => {
-        const checkIfSaved = async () => {
-            if (!isAuthenticated || !route?.id) return;
+        const fetchRoute = async () => {
+            if (!id) {
+                navigate('/profile');
+                return;
+            }
 
             try {
-                const response = await getFavorites() as any;
-                const favorites = response.favorites || [];
-                const existingFavorite = favorites.find((fav: any) => fav.routeId === route.id);
+                setLoading(true);
+                const response = await getFavoriteById(id) as any;
+                const favoriteData = response.favorite;
 
-                if (existingFavorite) {
-                    setIsSaved(true);
-                    setSavedFavoriteId(existingFavorite.id);
+                if (favoriteData?.route) {
+                    setRoute(favoriteData.route);
+                } else {
+                    setToast('Không tìm thấy lộ trình đã lưu.');
+                    setTimeout(() => navigate('/profile'), 2000);
                 }
-            } catch (err) {
-                // Silent fail - not critical
+            } catch (err: any) {
+                console.error('Error fetching saved route:', err);
+                setToast(err?.response?.data?.message || 'Không thể tải lộ trình.');
+                setTimeout(() => navigate('/profile'), 2000);
+            } finally {
+                setLoading(false);
             }
         };
 
-        checkIfSaved();
-    }, [isAuthenticated, route?.id]);
+        fetchRoute();
+    }, [id, navigate]);
 
-    const handleSave = async () => {
-        if (!isAuthenticated) {
-            setToast('Đăng nhập để lưu lộ trình.');
-            setTimeout(() => navigate('/login'), 1500);
-            return;
-        }
-
-        setSavingRoute(true);
-
-        try {
-            if (!route?.id) return;
-
-            if (isSaved && savedFavoriteId) {
-                // Unsave the route
-                await removeFavorite(savedFavoriteId);
-                setIsSaved(false);
-                setSavedFavoriteId(null);
-                setToast('Đã xóa khỏi yêu thích.');
-            } else {
-                // Save the route
-                const response = await saveFavorite({
-                    routeId: route.id,
-                    route: route // Send full route data
-                }) as any;
-                setIsSaved(true);
-                setSavedFavoriteId(response.favorite?.id || null);
-                setToast('Đã lưu vào yêu thích.');
-            }
-        } catch (err: any) {
-            setToast(err?.response?.data?.message || 'Không thể lưu lộ trình này.');
-        } finally {
-            setSavingRoute(false);
-        }
-    };
-
-    useEffect(() => {
-        if (toast) {
-            const timer = setTimeout(() => setToast(null), 3000);
-            return () => clearTimeout(timer);
-        }
-    }, [toast]);
-
-    // Scroll to top on mount
-    useEffect(() => {
-        window.scrollTo(0, 0);
-    }, []);
-
-    // Fetch ORS geometries for all segments
+    // Fetch geometries for map
     useEffect(() => {
         const fetchGeometries = async () => {
             if (!route || !route.segments) return;
@@ -109,7 +57,6 @@ export default function RouteDetailPage() {
                 for (let i = 0; i < route.segments.length; i++) {
                     const segment = route.segments[i];
 
-                    // Skip if segment doesn't have coordinates
                     if (!segment.from_coordinates || !segment.to_coordinates) {
                         segmentGeometries.push(null);
                         continue;
@@ -150,8 +97,33 @@ export default function RouteDetailPage() {
         fetchGeometries();
     }, [route]);
 
+    // Toast auto-dismiss
+    useEffect(() => {
+        if (toast) {
+            const timer = setTimeout(() => setToast(null), 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [toast]);
+
+    // Scroll to top on mount
+    useEffect(() => {
+        window.scrollTo(0, 0);
+    }, []);
+
+    // Loading state
+    if (loading) {
+        return (
+            <div className="container mx-auto px-4 py-6 max-w-7xl">
+                <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+                    <Loader2 className="h-12 w-12 text-orange animate-spin" />
+                    <p className="text-lg text-gray-600">Đang tải lộ trình...</p>
+                </div>
+            </div>
+        );
+    }
+
     if (!route) {
-        return null; // Will redirect in useEffect
+        return null;
     }
 
     // Prepare coordinates for map
@@ -165,7 +137,7 @@ export default function RouteDetailPage() {
             {/* Back Button */}
             <Button
                 variant="ghost"
-                onClick={() => navigate(-1)}
+                onClick={() => navigate('/profile')}
                 className="mb-4 pl-0 hover:bg-transparent hover:text-orange"
             >
                 <ArrowLeft className="h-4 w-4 mr-2" /> Quay lại
@@ -176,7 +148,7 @@ export default function RouteDetailPage() {
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
                     <div>
                         <h1 className="text-3xl font-bold text-navy mb-2">
-                            Chi tiết lộ trình
+                            Lộ trình đã lưu
                         </h1>
                         <p className="text-lg text-gray-600">
                             <span className="font-semibold">{route.from.name}</span>
@@ -184,17 +156,14 @@ export default function RouteDetailPage() {
                             <span className="font-semibold">{route.to.name}</span>
                         </p>
                     </div>
+                    {/* Saved indicator - disabled */}
                     <Button
-                        onClick={handleSave}
-                        disabled={savingRoute}
-                        variant={isSaved ? "default" : "outline"}
-                        className={isSaved
-                            ? "bg-orange hover:bg-orange/90 text-white"
-                            : "border-orange text-orange hover:bg-orange hover:text-white"
-                        }
+                        disabled
+                        variant="default"
+                        className="bg-orange text-white cursor-not-allowed opacity-75"
                     >
-                        <Heart className={`h-4 w-4 mr-2 ${isSaved ? 'fill-current' : ''}`} />
-                        {savingRoute ? 'Đang xử lý...' : (isSaved ? 'Đã lưu' : 'Lưu lộ trình')}
+                        <Heart className="h-4 w-4 mr-2 fill-current" />
+                        Đã lưu
                     </Button>
                 </div>
 

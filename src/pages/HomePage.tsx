@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Search, MapPin, Loader2, Trash2, Crosshair } from 'lucide-react';
 
 import SimpleMapViewer from '@/components/SimpleMapViewer';
@@ -20,6 +21,7 @@ const MAX_WIDTH = 600;
 export default function HomePage() {
     const { isAuthenticated } = useAuth();
     const { requestPosition, loading: locating } = useGeolocation();
+    const [searchParams, setSearchParams] = useSearchParams();
 
     // --- Refs ---
     const mainContentRef = useRef<HTMLDivElement>(null);
@@ -66,6 +68,52 @@ export default function HomePage() {
         const stateToSave = { from: fromPlace, to: toPlace, routes: routes };
         sessionStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
     }, [fromPlace, toPlace, routes]);
+
+    // 3. Read URL query parameters and pre-fill fields (from profile history)
+    useEffect(() => {
+        const fromLabel = searchParams.get('fromLabel');
+        const fromLat = searchParams.get('fromLat');
+        const fromLng = searchParams.get('fromLng');
+        const toLabel = searchParams.get('toLabel');
+        const toLat = searchParams.get('toLat');
+        const toLng = searchParams.get('toLng');
+        const fromHistory = searchParams.get('fromHistory');
+
+        // Only apply if params exist and fields are empty
+        if (fromLabel && fromLat && fromLng && !fromPlace) {
+            setFromPlace({
+                label: fromLabel,
+                fullName: fromLabel,
+                coords: {
+                    lat: parseFloat(fromLat),
+                    lng: parseFloat(fromLng)
+                }
+            });
+        }
+
+        if (toLabel && toLat && toLng && !toPlace) {
+            setToPlace({
+                label: toLabel,
+                fullName: toLabel,
+                coords: {
+                    lat: parseFloat(toLat),
+                    lng: parseFloat(toLng)
+                }
+            });
+        }
+
+        // Scroll to search section if coming from history
+        if (fromHistory && mainContentRef.current) {
+            setTimeout(() => {
+                mainContentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 100);
+        }
+
+        // Clear query parameters after applying
+        if (fromLabel || toLabel) {
+            setSearchParams({});
+        }
+    }, [searchParams, setSearchParams]);
 
     // --- Handlers ---
     const handleScrollDown = () => {

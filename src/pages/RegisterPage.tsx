@@ -13,12 +13,16 @@ export default function RegisterPage() {
 
     const handleSubmit = async (event: React.FormEvent) => {
         event.preventDefault();
+        setError(null);
+
         try {
             setLoading(true);
             await register(form);
             navigate('/profile', { replace: true });
         } catch (err: any) {
-            setError(err?.response?.data?.message || 'Không thể đăng ký.');
+            // Show exact error message from backend
+            const errorMessage = err?.response?.data?.message || err?.message || 'Không thể đăng ký. Vui lòng thử lại.';
+            setError(errorMessage);
         } finally {
             setLoading(false);
         }
