@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import useGeolocation from '@/hooks/useGeolocation';
-import { getNearbyStops } from '@/services/api';
+import { getNearbyStops, getWalkingRoute } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import { MapPin, Map as MapIcon, Info } from 'lucide-react';
 import WalkingRouteMap from './WalkingRouteMap';
@@ -60,27 +60,21 @@ export default function NearbyStops({ onSelectStop }: NearbyStopsProps) {
                     onSelectStop?.(selected);
                 }
 
-                const response = await fetch(
-                    `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/api/route/walking-route/${stopId}?originLat=${origin.lat}&originLng=${origin.lng}`
+                const data = await getWalkingRoute(stopId, origin.lat, origin.lng) as any;
+
+                // Update the stop with walking route data
+                setStops(prevStops =>
+                    prevStops.map(stop =>
+                        stop.id === stopId
+                            ? {
+                                ...stop,
+                                walkingRoute: data.walkingRoute,
+                                walkingDistance: data.walkingDistance,
+                                walkingDuration: data.walkingDuration
+                            }
+                            : stop
+                    )
                 );
-
-                if (response.ok) {
-                    const data = await response.json();
-
-                    // Update the stop with walking route data
-                    setStops(prevStops =>
-                        prevStops.map(stop =>
-                            stop.id === stopId
-                                ? {
-                                    ...stop,
-                                    walkingRoute: data.walkingRoute,
-                                    walkingDistance: data.walkingDistance,
-                                    walkingDuration: data.walkingDuration
-                                }
-                                : stop
-                        )
-                    );
-                }
             } catch (error) {
                 console.error('Failed to fetch walking route:', error);
                 // Silently fail - map will still show stops without route
@@ -149,32 +143,28 @@ export default function NearbyStops({ onSelectStop }: NearbyStopsProps) {
                                     return (
                                         <li
                                             key={stop.id}
-                                            className={`p-3 rounded-lg transition-all cursor-pointer border-2 ${
-                                                isSelected 
-                                                    ? 'bg-green-50 border-green-400 shadow-sm' 
-                                                    : 'bg-white border-gray-100 hover:bg-gray-50 hover:border-gray-200'
-                                            }`}
+                                            className={`p-3 rounded-lg transition-all cursor-pointer border-2 ${isSelected
+                                                ? 'bg-green-50 border-green-400 shadow-sm'
+                                                : 'bg-white border-gray-100 hover:bg-gray-50 hover:border-gray-200'
+                                                }`}
                                             onClick={() => handleStopClick(stop.id)}
                                         >
                                             <div className="flex items-start gap-3">
                                                 {/* Order Number Badge */}
-                                                <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
-                                                    isSelected 
-                                                        ? 'bg-green-500 text-white' 
-                                                        : 'bg-gray-200 text-gray-700'
-                                                }`}>
+                                                <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${isSelected
+                                                    ? 'bg-green-500 text-white'
+                                                    : 'bg-gray-200 text-gray-700'
+                                                    }`}>
                                                     {stop.orderNumber || stop.sequenceNumber || 1}
                                                 </div>
 
                                                 <div className="flex-1 min-w-0">
                                                     {/* Stop Name */}
                                                     <div className="flex items-center gap-2 mb-1">
-                                                        <MapPin className={`h-4 w-4 flex-shrink-0 ${
-                                                            isSelected ? 'text-green-600' : 'text-gray-500'
-                                                        }`} />
-                                                        <strong className={`block truncate ${
-                                                            isSelected ? 'text-green-700' : 'text-gray-900'
-                                                        }`}>
+                                                        <MapPin className={`h-4 w-4 flex-shrink-0 ${isSelected ? 'text-green-600' : 'text-gray-500'
+                                                            }`} />
+                                                        <strong className={`block truncate ${isSelected ? 'text-green-700' : 'text-gray-900'
+                                                            }`}>
                                                             {stop.displayName || stop.name}
                                                         </strong>
                                                     </div>

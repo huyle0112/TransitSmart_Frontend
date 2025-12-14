@@ -5,7 +5,6 @@ import PlaceAutocomplete from '@/components/PlaceAutocomplete';
 import WalkingRouteMap from '@/components/WalkingRouteMap';
 import StopDetailModal from '@/components/StopDetailModal';
 import { getNearbyStops } from '@/services/api';
-import useGeolocation from '@/hooks/useGeolocation';
 
 export default function StopSearchPage() {
     const { requestPosition, loading: geoLoading } = useGeolocation();
@@ -126,31 +125,26 @@ export default function StopSearchPage() {
 
                 // Fetch walking route for first stop
                 try {
-                    const url = `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/api/route/walking-route/${firstStopId}?originLat=${response.origin.lat}&originLng=${response.origin.lng}`;
-                    console.log('[StopSearch] Fetching initial walking route from:', url);
+                    const routeData = await getWalkingRoute(
+                        firstStopId,
+                        response.origin.lat,
+                        response.origin.lng
+                    ) as any;
 
-                    const routeResponse = await fetch(url);
-                    console.log('[StopSearch] Initial route response status:', routeResponse.status);
+                    console.log('[StopSearch] Received initial walking route data:', routeData);
 
-                    if (routeResponse.ok) {
-                        const routeData = await routeResponse.json();
-                        console.log('[StopSearch] Received initial walking route data:', routeData);
-
-                        setStops(prevStops =>
-                            prevStops.map(stop =>
-                                stop.id === firstStopId
-                                    ? {
-                                        ...stop,
-                                        walkingRoute: routeData.walkingRoute,
-                                        walkingDistance: routeData.walkingDistance,
-                                        walkingDuration: routeData.walkingDuration
-                                    }
-                                    : stop
-                            )
-                        );
-                    } else {
-                        console.error('[StopSearch] Failed to fetch initial walking route, status:', routeResponse.status);
-                    }
+                    setStops(prevStops =>
+                        prevStops.map(stop =>
+                            stop.id === firstStopId
+                                ? {
+                                    ...stop,
+                                    walkingRoute: routeData.walkingRoute,
+                                    walkingDistance: routeData.walkingDistance,
+                                    walkingDuration: routeData.walkingDuration
+                                }
+                                : stop
+                        )
+                    );
                 } catch (error) {
                     console.error('[StopSearch] Failed to fetch initial walking route:', error);
                 }
@@ -170,33 +164,23 @@ export default function StopSearchPage() {
         // Fetch walking route on-demand
         if (origin && stopId) {
             try {
-                const url = `${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/api/route/walking-route/${stopId}?originLat=${origin.lat}&originLng=${origin.lng}`;
-                console.log('[StopSearch] Fetching walking route from:', url);
+                const data = await getWalkingRoute(stopId, origin.lat, origin.lng) as any;
+                console.log('[StopSearch] Received walking route data:', data);
 
-                const response = await fetch(url);
-                console.log('[StopSearch] Response status:', response.status);
-
-                if (response.ok) {
-                    const data = await response.json();
-                    console.log('[StopSearch] Received walking route data:', data);
-
-                    setStops(prevStops => {
-                        const updated = prevStops.map(stop =>
-                            stop.id === stopId
-                                ? {
-                                    ...stop,
-                                    walkingRoute: data.walkingRoute,
-                                    walkingDistance: data.walkingDistance,
-                                    walkingDuration: data.walkingDuration
-                                }
-                                : stop
-                        );
-                        console.log('[StopSearch] Updated stops with walking route');
-                        return updated;
-                    });
-                } else {
-                    console.error('[StopSearch] Failed to fetch walking route, status:', response.status);
-                }
+                setStops(prevStops => {
+                    const updated = prevStops.map(stop =>
+                        stop.id === stopId
+                            ? {
+                                ...stop,
+                                walkingRoute: data.walkingRoute,
+                                walkingDistance: data.walkingDistance,
+                                walkingDuration: data.walkingDuration
+                            }
+                            : stop
+                    );
+                    console.log('[StopSearch] Updated stops with walking route');
+                    return updated;
+                });
             } catch (error) {
                 console.error('[StopSearch] Failed to fetch walking route:', error);
             }
@@ -300,22 +284,8 @@ export default function StopSearchPage() {
 
                     {/* Right Column: Stops List (35% width, Scrollable) */}
                     <div className="w-full lg:w-[35%] flex-shrink-0 h-full overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 hover:scrollbar-thumb-gray-400 bg-white">
-                            <div className="p-4 pt-05">
+                            <div className="p-4 pt-32">
                                 {/* Add padding-top to avoid overlap with header + floating search */}
-
-                                {/* Find Nearby Button - Shows in results area */}
-                                <div className="mb-4">
-                                    <Button
-                                        onClick={handleFindNearby}
-                                        disabled={geoLoading || loading}
-                                        className="w-full bg-green-600 hover:bg-green-700 text-white mb-3"
-                                        size="lg"
-                                    >
-                                        <Navigation className="h-5 w-5 mr-2" />
-                                        {geoLoading || loading ? 'Đang tìm...' : 'Tìm điểm dừng gần bạn'}
-                                    </Button>
-                                </div>
-
                                 <div className="mb-4">
                                     <h2 className="text-lg font-bold text-navy mb-1">
                                         Tìm thấy {stops.length} trạm gần đây
@@ -332,32 +302,28 @@ export default function StopSearchPage() {
                                     return (
                                         <li
                                             key={stop.id}
-                                            className={`p-3 rounded-lg transition-all cursor-pointer border-2 ${
-                                                isSelected 
-                                                    ? 'bg-green-50 border-green-400 shadow-sm' 
-                                                    : 'bg-white border-gray-100 hover:bg-gray-50 hover:border-gray-200'
-                                            }`}
+                                            className={`p-3 rounded-lg transition-all cursor-pointer border-2 ${isSelected
+                                                ? 'bg-green-50 border-green-400 shadow-sm'
+                                                : 'bg-white border-gray-100 hover:bg-gray-50 hover:border-gray-200'
+                                                }`}
                                             onClick={() => handleStopClick(stop.id)}
                                         >
                                             <div className="flex items-start gap-3">
                                                 {/* Order Number Badge */}
-                                                <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
-                                                    isSelected 
-                                                        ? 'bg-green-500 text-white' 
-                                                        : 'bg-gray-200 text-gray-700'
-                                                }`}>
+                                                <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${isSelected
+                                                    ? 'bg-green-500 text-white'
+                                                    : 'bg-gray-200 text-gray-700'
+                                                    }`}>
                                                     {stop.orderNumber || stop.sequenceNumber || 1}
                                                 </div>
 
                                                 <div className="flex-1 min-w-0">
                                                     {/* Stop Name */}
                                                     <div className="flex items-center gap-2 mb-1">
-                                                        <MapPin className={`h-4 w-4 flex-shrink-0 ${
-                                                            isSelected ? 'text-green-600' : 'text-gray-500'
-                                                        }`} />
-                                                        <strong className={`block truncate ${
-                                                            isSelected ? 'text-green-700' : 'text-gray-900'
-                                                        }`}>
+                                                        <MapPin className={`h-4 w-4 flex-shrink-0 ${isSelected ? 'text-green-600' : 'text-gray-500'
+                                                            }`} />
+                                                        <strong className={`block truncate ${isSelected ? 'text-green-700' : 'text-gray-900'
+                                                            }`}>
                                                             {stop.displayName || stop.name}
                                                         </strong>
                                                     </div>
