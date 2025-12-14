@@ -36,7 +36,7 @@ export default function BusLinesPage() {
               <div className="p-4">
                 <ReviewSection
                   targetType="route"
-                  targetId={selectedRoute.name}
+                  targetId={selectedRoute.sampleId}
                   title=""
                 />
               </div>
