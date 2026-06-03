@@ -2,12 +2,14 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import { Bus, MapPin, Clock, TrendingUp } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTranslation } from 'react-i18next';
 
 export default function AuthLayout() {
     const location = useLocation();
     const navigate = useNavigate();
     const { isAuthenticated, isAdmin } = useAuth();
     const isLogin = location.pathname === '/login' || location.state?.mode === 'login';
+    const { t } = useTranslation();
 
     // Redirect authenticated users away from login/register pages
     useEffect(() => {
@@ -41,11 +43,11 @@ export default function AuthLayout() {
                     {/* Main Content */}
                     <div className="space-y-8">
                         <div>
-                            <h1 className="text-4xl font-bold mb-4 leading-tight">
-                                Hệ thống giao thông<br />thông minh cho bạn
+                            <h1 className="text-4xl font-bold mb-4 leading-tight whitespace-pre-line">
+                                {t('authLayout.systemBrandingTitle')}
                             </h1>
                             <p className="text-lg text-gray-300 leading-relaxed">
-                                Tìm kiếm lộ trình xe buýt nhanh chóng, chính xác và tiện lợi nhất
+                                {t('authLayout.systemBrandingDesc')}
                             </p>
                         </div>
 
@@ -56,8 +58,8 @@ export default function AuthLayout() {
                                     <Bus className="text-orange" size={20} />
                                 </div>
                                 <div>
-                                    <h3 className="font-semibold mb-1">Tìm tuyến</h3>
-                                    <p className="text-sm text-gray-300">Nhanh chóng</p>
+                                    <h3 className="font-semibold mb-1">{t('authLayout.featureFindLine')}</h3>
+                                    <p className="text-sm text-gray-300">{t('authLayout.featureFindLineDesc')}</p>
                                 </div>
                             </div>
                             <div className="flex items-start gap-3 p-4 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20">
@@ -65,8 +67,8 @@ export default function AuthLayout() {
                                     <MapPin className="text-orange" size={20} />
                                 </div>
                                 <div>
-                                    <h3 className="font-semibold mb-1">Điểm dừng</h3>
-                                    <p className="text-sm text-gray-300">Chính xác</p>
+                                    <h3 className="font-semibold mb-1">{t('authLayout.featureStops')}</h3>
+                                    <p className="text-sm text-gray-300">{t('authLayout.featureStopsDesc')}</p>
                                 </div>
                             </div>
                             <div className="flex items-start gap-3 p-4 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20">
@@ -74,8 +76,8 @@ export default function AuthLayout() {
                                     <Clock className="text-orange" size={20} />
                                 </div>
                                 <div>
-                                    <h3 className="font-semibold mb-1">Thời gian</h3>
-                                    <p className="text-sm text-gray-300">Thực tế</p>
+                                    <h3 className="font-semibold mb-1">{t('authLayout.featureTime')}</h3>
+                                    <p className="text-sm text-gray-300">{t('authLayout.featureTimeDesc')}</p>
                                 </div>
                             </div>
                             <div className="flex items-start gap-3 p-4 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20">
@@ -83,8 +85,8 @@ export default function AuthLayout() {
                                     <TrendingUp className="text-orange" size={20} />
                                 </div>
                                 <div>
-                                    <h3 className="font-semibold mb-1">Tối ưu</h3>
-                                    <p className="text-sm text-gray-300">Hành trình</p>
+                                    <h3 className="font-semibold mb-1">{t('authLayout.featureOptimize')}</h3>
+                                    <p className="text-sm text-gray-300">{t('authLayout.featureOptimizeDesc')}</p>
                                 </div>
                             </div>
                         </div>
@@ -115,12 +117,12 @@ export default function AuthLayout() {
                     {/* Welcome Text */}
                     <div className="text-center">
                         <h2 className="text-3xl font-bold text-navy">
-                            {isLogin ? 'Chào mừng trở lại!' : 'Tạo tài khoản mới'}
+                            {isLogin ? t('authLayout.welcomeBack') : t('authLayout.createNewAccount')}
                         </h2>
                         <p className="mt-2 text-gray-600">
                             {isLogin
-                                ? 'Đăng nhập để tiếp tục sử dụng dịch vụ'
-                                : 'Đăng ký để trải nghiệm đầy đủ tính năng'
+                                ? t('authLayout.loginToContinue')
+                                : t('authLayout.registerToExperience')
                             }
                         </p>
                     </div>
@@ -134,3 +136,4 @@ export default function AuthLayout() {
         </div>
     );
 }
+

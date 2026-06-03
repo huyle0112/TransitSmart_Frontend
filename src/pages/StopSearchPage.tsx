@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Search, MapPin, Map as MapIcon, Info, ArrowLeft, Loader2, Crosshair } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import PlaceAutocomplete from '@/components/PlaceAutocomplete';
 import WalkingRouteMap from '@/components/WalkingRouteMap';
 import StopDetailModal from '@/components/StopDetailModal';
@@ -11,9 +12,16 @@ import useGeolocation from '@/hooks/useGeolocation';
 export default function StopSearchPage() {
     const navigate = useNavigate();
     const { requestPosition, loading: geoLoading } = useGeolocation();
+    const { t } = useTranslation();
     
     // States
-    const [selectedPlace, setSelectedPlace] = useState<any>(null);
+    const defaultPlace = {
+        label: "Đại học Bách khoa Hà Nội, Đường Đại Cồ Việt",
+        fullName: "Đại học Bách khoa Hà Nội, Đường Đại Cồ Việt",
+        coords: { lat: 21.0064, lng: 105.8431 }
+    };
+
+    const [selectedPlace, setSelectedPlace] = useState<any>(defaultPlace);
     const [stops, setStops] = useState<any[]>([]);
     const [origin, setOrigin] = useState<any>(null);
     const [loading, setLoading] = useState(false);
@@ -82,7 +90,7 @@ export default function StopSearchPage() {
             const coords = await requestPosition();
             setLoading(true);
             
-            setSelectedPlace({ label: 'Vị trí của bạn', coords });
+            setSelectedPlace({ label: t('home.yourLocation'), coords });
 
             const response = await getNearbyStops(coords) as any;
             const uniqueStops = deduplicateStops(response.stops);
@@ -99,7 +107,7 @@ export default function StopSearchPage() {
                 fetchWalkingRoute(firstStopId, response.origin);
             }
         } catch (err: any) {
-            setError(err.message || 'Không thể xác định vị trí của bạn lúc này.');
+            setError(err.message || t('stops.locationError'));
         } finally {
             setLoading(false);
         }
@@ -107,7 +115,7 @@ export default function StopSearchPage() {
 
     const handleSearch = async () => {
         if (!selectedPlace || !selectedPlace.coords) {
-            setError('Vui lòng chọn địa điểm hợp lệ');
+            setError(t('stops.invalidPlace'));
             return;
         }
 
@@ -117,7 +125,7 @@ export default function StopSearchPage() {
             const { lat, lng } = selectedPlace.coords;
 
             if (typeof lat !== 'number' || typeof lng !== 'number' || isNaN(lat) || isNaN(lng)) {
-                setError('Tọa độ không hợp lệ');
+                setError(t('stops.invalidCoords'));
                 setLoading(false);
                 return;
             }
@@ -140,11 +148,19 @@ export default function StopSearchPage() {
                 fetchWalkingRoute(firstStopId, response.origin);
             }
         } catch (err: any) {
-            setError(err.message || 'Không thể tìm điểm dừng gần vị trí này.');
+            setError(err.message || t('stops.noResults'));
         } finally {
             setLoading(false);
         }
     };
+
+    useEffect(() => {
+        // Auto-search default place on mount
+        if (selectedPlace && selectedPlace.coords) {
+            handleSearch();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const handleStopClick = async (stopId: string) => {
         setSelectedStopId(stopId);
@@ -171,19 +187,19 @@ export default function StopSearchPage() {
     return (
         <div className="container mx-auto px-4 py-6 max-w-6xl min-h-screen">
             {/* Header Section */}
-            <Button variant="ghost" onClick={() => navigate(-1)} className="mb-4 pl-0 hover:bg-transparent hover:text-orange">
-                <ArrowLeft className="h-4 w-4 mr-2" /> Quay lại
+            <Button variant="ghost" onClick={() => navigate(-1)} className="mb-4 pl-0 hover:bg-transparent hover:text-orange cursor-pointer">
+                <ArrowLeft className="h-4 w-4 mr-2" /> {t('stops.back')}
             </Button>
 
             <header className="mb-8">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
                     <div>
-                        <p className="text-sm font-semibold text-orange uppercase tracking-wider mb-1">Tra cứu nhanh</p>
+                        <p className="text-sm font-semibold text-orange uppercase tracking-wider mb-1">{t('stops.quickSearch')}</p>
                         <h1 className="text-2xl md:text-3xl font-bold text-navy">
-                            Tìm điểm dừng xe buýt
+                            {t('stops.title')}
                         </h1>
                         <p className="text-gray-600 mt-2">
-                            Tìm các trạm dừng xung quanh vị trí của bạn hoặc một địa điểm bất kỳ.
+                            {t('stops.subtitle')}
                         </p>
                     </div>
                     
@@ -194,7 +210,7 @@ export default function StopSearchPage() {
                                 <PlaceAutocomplete
                                     value={selectedPlace}
                                     onChange={handlePlaceSelect}
-                                    placeholder="Nhập địa điểm để tìm..."
+                                    placeholder={t('stops.placeholder')}
                                     className="border-none shadow-none bg-transparent focus-visible:ring-0 w-full h-11" 
                                 />
                             </div>
@@ -202,10 +218,10 @@ export default function StopSearchPage() {
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-8 w-8 text-gray-400 hover:text-blue-600 hover:bg-blue-100/50 rounded-full transition-all"
+                                    className="h-8 w-8 text-gray-400 hover:text-blue-600 hover:bg-blue-100/50 rounded-full transition-all cursor-pointer"
                                     onClick={handleFindNearby}
                                     disabled={geoLoading || loading}
-                                    title="Lấy vị trí hiện tại"
+                                    title={t('home.getCurrentLocation')}
                                 >
                                     {geoLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Crosshair className="h-4 w-4" />}
                                 </Button>
@@ -215,7 +231,7 @@ export default function StopSearchPage() {
                         <Button
                             onClick={handleSearch}
                             disabled={!selectedPlace || loading}
-                            className="bg-navy hover:bg-navy/90 text-white h-auto px-6"
+                            className="bg-navy hover:bg-navy/90 text-white h-auto px-6 cursor-pointer"
                         >
                             {loading ? <Loader2 className="h-5 w-5 animate-spin"/> : <Search className="h-5 w-5" />}
                         </Button>
@@ -245,7 +261,7 @@ export default function StopSearchPage() {
                         ) : (
                             <div className="w-full h-full flex flex-col items-center justify-center bg-gray-50 text-gray-400">
                                 <MapIcon className="h-16 w-16 mb-4 opacity-20" />
-                                <p>Bản đồ sẽ hiển thị sau khi bạn tìm kiếm</p>
+                                <p>{t('stops.mapPlaceholder')}</p>
                             </div>
                         )}
                     </div>
@@ -254,11 +270,11 @@ export default function StopSearchPage() {
                     {stops.length > 0 && (
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             <article className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center">
-                                <h3 className="text-xs font-semibold text-gray-500 uppercase mb-1">Số trạm tìm thấy</h3>
+                                <h3 className="text-xs font-semibold text-gray-500 uppercase mb-1">{t('stops.numStops')}</h3>
                                 <p className="text-xl font-bold text-navy">{stops.length}</p>
                             </article>
                             <article className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 text-center">
-                                <h3 className="text-xs font-semibold text-gray-500 uppercase mb-1">Trạm gần nhất</h3>
+                                <h3 className="text-xs font-semibold text-gray-500 uppercase mb-1">{t('stops.nearestStop')}</h3>
                                 <p className="text-xl font-bold text-navy">
                                     {stops[0]?.distanceText || 'N/A'}
                                 </p>
@@ -271,12 +287,12 @@ export default function StopSearchPage() {
                 <div className={`${cardClass} h-[600px] flex flex-col`}>
                     <div className="p-4 border-b border-gray-100 bg-white sticky top-0 z-10">
                         <h2 className="text-lg font-bold text-navy flex items-center gap-2">
-                            Danh sách trạm
+                            {t('stops.stopsList')}
                             {stops.length > 0 && <span className="text-sm font-normal text-gray-500">({stops.length})</span>}
                         </h2>
                         {stops.length > 0 && (
                              <p className="text-xs text-gray-500 mt-1">
-                                Chọn trạm để xem đường đi bộ
+                                {t('stops.selectStopPrompt')}
                              </p>
                         )}
                     </div>
@@ -313,7 +329,7 @@ export default function StopSearchPage() {
                                                 <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
                                                     <span>{stop.distanceText}</span>
                                                     <span>•</span>
-                                                    <span>{Math.round(stop.walkingDuration || 0)} phút đi bộ</span>
+                                                    <span>{Math.round(stop.walkingDuration || 0)} {t('stops.minutesWalk')}</span>
                                                 </div>
 
                                                 {/* Bus Routes Tags */}
@@ -337,9 +353,9 @@ export default function StopSearchPage() {
                                                     variant="ghost"
                                                     size="sm"
                                                     onClick={(e) => handleShowDetail(stop, e)}
-                                                    className={`mt-2 h-7 px-0 text-xs hover:bg-transparent ${isSelected ? 'text-orange' : 'text-blue-600'}`}
+                                                    className={`mt-2 h-7 px-0 text-xs hover:bg-transparent cursor-pointer ${isSelected ? 'text-orange' : 'text-blue-600'}`}
                                                 >
-                                                    Xem chi tiết <Info className="h-3 w-3 ml-1" />
+                                                    {t('stops.viewDetails')} <Info className="h-3 w-3 ml-1" />
                                                 </Button>
                                             </div>
                                         </div>
@@ -349,7 +365,7 @@ export default function StopSearchPage() {
                         ) : (
                             <div className="text-center py-10 text-gray-400">
                                 <MapPin className="h-10 w-10 mx-auto mb-2 opacity-20" />
-                                <p className="text-sm">Chưa có kết quả tìm kiếm.</p>
+                                <p className="text-sm">{t('stops.noResults')}</p>
                             </div>
                         )}
                     </div>

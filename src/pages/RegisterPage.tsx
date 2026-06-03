@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Loader2, UserPlus } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export default function RegisterPage() {
     const { register } = useAuth();
@@ -10,6 +11,7 @@ export default function RegisterPage() {
     const [form, setForm] = useState({ name: '', email: '', password: '' });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const { t } = useTranslation();
 
     const handleSubmit = async (event: React.FormEvent) => {
         event.preventDefault();
@@ -21,7 +23,7 @@ export default function RegisterPage() {
             navigate('/profile', { replace: true });
         } catch (err: any) {
             // Show exact error message from backend
-            const errorMessage = err?.response?.data?.message || err?.message || 'Không thể đăng ký. Vui lòng thử lại.';
+            const errorMessage = err?.response?.data?.message || err?.message || t('auth.registerError');
             setError(errorMessage);
         } finally {
             setLoading(false);
@@ -35,8 +37,8 @@ export default function RegisterPage() {
                     <UserPlus className="h-4 w-4" />
                 </div>
                 <div>
-                    <h1 className="text-xl font-bold text-navy">Tạo tài khoản</h1>
-                    <p className="text-sm text-gray-500">Lưu lộ trình, đánh giá trạm và đồng bộ lịch sử.</p>
+                    <h1 className="text-xl font-bold text-navy">{t('auth.registerTitle')}</h1>
+                    <p className="text-sm text-gray-500">{t('auth.registerSubtitle')}</p>
                 </div>
             </div>
 
@@ -44,7 +46,7 @@ export default function RegisterPage() {
 
             <form className="space-y-4" onSubmit={handleSubmit}>
                 <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700" htmlFor="name">Họ tên</label>
+                    <label className="text-sm font-medium text-gray-700" htmlFor="name">{t('auth.fullName')}</label>
                     <input
                         id="name"
                         required
@@ -54,7 +56,7 @@ export default function RegisterPage() {
                     />
                 </div>
                 <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700" htmlFor="email">Email</label>
+                    <label className="text-sm font-medium text-gray-700" htmlFor="email">{t('auth.email')}</label>
                     <input
                         id="email"
                         type="email"
@@ -65,7 +67,7 @@ export default function RegisterPage() {
                     />
                 </div>
                 <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700" htmlFor="password">Mật khẩu</label>
+                    <label className="text-sm font-medium text-gray-700" htmlFor="password">{t('auth.password')}</label>
                     <input
                         id="password"
                         type="password"
@@ -76,16 +78,17 @@ export default function RegisterPage() {
                     />
                 </div>
 
-                <Button type="submit" className="w-full bg-orange hover:bg-orange-hover text-white" disabled={loading}>
+                <Button type="submit" className="w-full bg-orange hover:bg-orange-hover text-white cursor-pointer" disabled={loading}>
                     {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
-                    <span className="ml-2">Đăng ký</span>
+                    <span className="ml-2">{t('nav.register')}</span>
                 </Button>
             </form>
 
             <p className="text-sm text-gray-500 mt-6 text-center">
-                Đã có tài khoản?{' '}
-                <Link to="/login" className="text-orange font-semibold hover:underline">Đăng nhập</Link>
+                {t('auth.alreadyHaveAccount')}{' '}
+                <Link to="/login" className="text-orange font-semibold hover:underline">{t('auth.loginNow')}</Link>
             </p>
         </div>
     );
 }
+

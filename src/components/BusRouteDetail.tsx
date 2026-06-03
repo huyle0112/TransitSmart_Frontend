@@ -4,6 +4,7 @@ import BusRouteSchedule from './BusRouteSchedule';
 import StopPreviewCard from './StopPreviewCard';
 import { Loader2, ArrowRightLeft, MapPin, Map as MapIcon, List } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
 
 import BusRouteMap from './BusRouteMap';
 
@@ -12,6 +13,7 @@ interface BusRouteDetailProps {
 }
 
 export default function BusRouteDetail({ routeName }: BusRouteDetailProps) {
+  const { t } = useTranslation();
   const [details, setDetails] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'forward' | 'backward'>('forward');
@@ -64,7 +66,7 @@ export default function BusRouteDetail({ routeName }: BusRouteDetailProps) {
               : "text-gray-600 hover:text-navy hover:bg-gray-50"
           )}
         >
-          Lượt đi
+          {t('routeDetail.forward')}
           {activeTab === 'forward' && (
             <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-orange" />
           )}
@@ -78,7 +80,7 @@ export default function BusRouteDetail({ routeName }: BusRouteDetailProps) {
               : "text-gray-600 hover:text-navy hover:bg-gray-50"
           )}
         >
-          Lượt về
+          {t('routeDetail.backward')}
           {activeTab === 'backward' && (
             <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-orange" />
           )}
@@ -97,14 +99,14 @@ export default function BusRouteDetail({ routeName }: BusRouteDetailProps) {
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-semibold text-navy flex items-center">
                   <MapPin className="w-4 h-4 mr-2 text-orange" />
-                  Danh sách trạm
+                  {t('routeDetail.stopsList')}
                 </h3>
                 <button
                   onClick={() => setShowMap(!showMap)}
                   className="flex items-center text-sm font-medium text-blue-600 hover:text-blue-700"
                 >
                   {showMap ? <List className="w-4 h-4 mr-1" /> : <MapIcon className="w-4 h-4 mr-1" />}
-                  {showMap ? 'Xem danh sách' : 'Xem bản đồ'}
+                  {showMap ? t('routeDetail.viewList') : t('routeDetail.viewMap')}
                 </button>
               </div>
 
@@ -175,7 +177,7 @@ export default function BusRouteDetail({ routeName }: BusRouteDetailProps) {
           </>
         ) : (
           <div className="text-center py-8 text-gray-500">
-            Không có dữ liệu cho chiều này.
+            {t('routeDetail.noData')}
           </div>
         )}
       </div>

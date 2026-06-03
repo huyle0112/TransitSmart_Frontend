@@ -5,12 +5,14 @@ import { Button } from '@/components/ui/button';
 import { MapPin, Map as MapIcon, Info } from 'lucide-react';
 import WalkingRouteMap from './WalkingRouteMap';
 import StopDetailModal from './StopDetailModal';
+import { useTranslation } from 'react-i18next';
 
 interface NearbyStopsProps {
     onSelectStop?: (stop: any) => void;
 }
 
 export default function NearbyStops({ onSelectStop }: NearbyStopsProps) {
+    const { t } = useTranslation();
     const { requestPosition, loading: geoLoading } = useGeolocation();
     const [stops, setStops] = useState<any[]>([]);
     const [origin, setOrigin] = useState<any>(null);
@@ -42,7 +44,7 @@ export default function NearbyStops({ onSelectStop }: NearbyStopsProps) {
                 onSelectStop?.(uniqueStops[0]);
             }
         } catch (err: any) {
-            setError(err.message || 'Không thể xác định vị trí của bạn lúc này.');
+            setError(err.message || t('stops.locationError'));
             setShowMap(false);
         } finally {
             setLoading(false);
@@ -96,12 +98,12 @@ export default function NearbyStops({ onSelectStop }: NearbyStopsProps) {
             <header className="border-b border-gray-200 bg-gray-50">
                 <div className="max-w-7xl mx-auto px-6 py-6 flex justify-between items-center">
                     <div>
-                        <p className="text-xs font-semibold text-orange uppercase tracking-wider mb-1">Gợi ý gần bạn</p>
-                        <h3 className="text-lg font-bold text-navy">Trạm đi bộ tới được</h3>
+                        <p className="text-xs font-semibold text-orange uppercase tracking-wider mb-1">{t('stops.nearbySuggestions')}</p>
+                        <h3 className="text-lg font-bold text-navy">{t('stops.walkableStops')}</h3>
                         {stops.length > 0 && (
                             <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
                                 <MapIcon className="h-3 w-3" />
-                                <span>Xanh dương: Vị trí bạn · Đỏ: Trạm · Xanh lá: Đã chọn</span>
+                                <span>{t('stops.mapLegend')}</span>
                             </p>
                         )}
                     </div>
@@ -111,7 +113,7 @@ export default function NearbyStops({ onSelectStop }: NearbyStopsProps) {
                         disabled={geoLoading || loading}
                         className="bg-navy hover:bg-navy/90"
                     >
-                        {geoLoading || loading ? 'Đang tìm...' : 'Tìm trạm gần đây'}
+                        {geoLoading || loading ? t('stops.finding') : t('stops.findNearbyStops')}
                     </Button>
                 </div>
             </header>
@@ -171,14 +173,14 @@ export default function NearbyStops({ onSelectStop }: NearbyStopsProps) {
 
                                                     {/* Distance Info */}
                                                     <p className="text-sm text-gray-500 mb-2">
-                                                        {stop.distanceText} · {Math.round(stop.walkingDuration)} phút đi bộ
+                                                        {stop.distanceText} · {Math.round(stop.walkingDuration)} {t('stops.minutesWalk')}
                                                     </p>
 
                                                     {/* Bus Routes */}
                                                     {stop.busRoutes && stop.busRoutes.length > 0 && (
                                                         <div className="mt-2 pt-2 border-t border-gray-100">
                                                             <p className="text-xs font-semibold text-gray-600 mb-1.5">
-                                                                Xe buýt sắp đến:
+                                                                {t('stops.upcomingBuses')}
                                                             </p>
                                                             <div className="space-y-1.5">
                                                                 {stop.busRoutes.map((route: any) => (
@@ -194,7 +196,7 @@ export default function NearbyStops({ onSelectStop }: NearbyStopsProps) {
                                                                                 {route.name}
                                                                             </span>
                                                                             {route.destinationName && (
-                                                                                <span className="text-[10px] text-gray-500 font-medium truncate max-w-[120px]" title={`Đi ${route.destinationName}`}>
+                                                                                <span className="text-[10px] text-gray-500 font-medium truncate max-w-[120px]" title={t('stops.toDestination', { destination: route.destinationName })}>
                                                                                     → {route.destinationName}
                                                                                 </span>
                                                                             )}
@@ -220,7 +222,7 @@ export default function NearbyStops({ onSelectStop }: NearbyStopsProps) {
                                                         <p className="text-xs text-green-600 mt-2 flex items-center gap-1">
                                                             <MapIcon className="h-3 w-3" />
                                                             <span>
-                                                                {isSelected ? 'Đường đi đang hiển thị' : 'Click để xem đường đi'}
+                                                                {isSelected ? t('stops.routeShown') : t('stops.clickToViewRoute')}
                                                             </span>
                                                         </p>
                                                     )}
@@ -234,7 +236,7 @@ export default function NearbyStops({ onSelectStop }: NearbyStopsProps) {
                                                             className="w-full text-navy border-navy hover:bg-navy hover:text-white"
                                                         >
                                                             <Info className="h-4 w-4 mr-1" />
-                                                            Xem chi tiết
+                                                            {t('stops.viewDetails')}
                                                         </Button>
                                                     </div>
                                                 </div>
@@ -249,8 +251,8 @@ export default function NearbyStops({ onSelectStop }: NearbyStopsProps) {
                     /* No Results / Initial State */
                     <div className="text-center text-gray-500 py-12 px-6">
                         <MapPin className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                        <p className="font-medium">Tìm trạm xe buýt gần bạn</p>
-                        <p className="text-sm mt-1">Nhấn nút bên trên để xem các trạm đi bộ tới được (tối đa 1.5km)</p>
+                        <p className="font-medium">{t('stops.findStopsNearYou')}</p>
+                        <p className="text-sm mt-1">{t('stops.findStopsDescription')}</p>
                     </div>
                 )}
             </div>

@@ -4,8 +4,10 @@ import SimpleMapViewer from '@/components/SimpleMapViewer';
 import { getFavoriteById, getORSDirections } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Heart, Clock, Coins, Repeat, PersonStanding, Bus, Footprints, CheckCircle, Loader2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export default function SavedRouteDetailPage() {
+    const { t } = useTranslation();
     const { id } = useParams();
     const navigate = useNavigate();
     const [route, setRoute] = useState<any>(null);
@@ -30,12 +32,12 @@ export default function SavedRouteDetailPage() {
                 if (favoriteData?.route) {
                     setRoute(favoriteData.route);
                 } else {
-                    setToast('Không tìm thấy lộ trình đã lưu.');
+                    setToast(t('errors.failedToLoadRoute'));
                     setTimeout(() => navigate('/profile'), 2000);
                 }
             } catch (err: any) {
                 console.error('Error fetching saved route:', err);
-                setToast(err?.response?.data?.message || 'Không thể tải lộ trình.');
+                setToast(err?.response?.data?.message || t('errors.failedToLoadRoute'));
                 setTimeout(() => navigate('/profile'), 2000);
             } finally {
                 setLoading(false);
@@ -43,7 +45,7 @@ export default function SavedRouteDetailPage() {
         };
 
         fetchRoute();
-    }, [id, navigate]);
+    }, [id, navigate, t]);
 
     // Fetch geometries for map
     useEffect(() => {
@@ -116,7 +118,7 @@ export default function SavedRouteDetailPage() {
             <div className="container mx-auto px-4 py-6 max-w-7xl">
                 <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
                     <Loader2 className="h-12 w-12 text-orange animate-spin" />
-                    <p className="text-lg text-gray-600">Đang tải lộ trình...</p>
+                    <p className="text-lg text-gray-600">{t('routeDetail.loadingRoute')}</p>
                 </div>
             </div>
         );
@@ -128,8 +130,8 @@ export default function SavedRouteDetailPage() {
 
     // Prepare coordinates for map
     const mapCoordinates = [
-        { ...route.from, name: 'Điểm đi' },
-        { ...route.to, name: 'Điểm đến' }
+        { ...route.from, name: t('home.from') },
+        { ...route.to, name: t('home.to') }
     ];
 
     return (
@@ -140,7 +142,7 @@ export default function SavedRouteDetailPage() {
                 onClick={() => navigate('/profile')}
                 className="mb-4 pl-0 hover:bg-transparent hover:text-orange"
             >
-                <ArrowLeft className="h-4 w-4 mr-2" /> Quay lại
+                <ArrowLeft className="h-4 w-4 mr-2" /> {t('routeDetail.back')}
             </Button>
 
             {/* Header */}
@@ -148,7 +150,7 @@ export default function SavedRouteDetailPage() {
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
                     <div>
                         <h1 className="text-3xl font-bold text-navy mb-2">
-                            Lộ trình đã lưu
+                            {t('routeDetail.savedRouteTitle')}
                         </h1>
                         <p className="text-lg text-gray-600">
                             <span className="font-semibold">{route.from.name}</span>
@@ -160,10 +162,10 @@ export default function SavedRouteDetailPage() {
                     <Button
                         disabled
                         variant="default"
-                        className="bg-orange text-white cursor-not-allowed opacity-75"
+                        className="bg-orange text-white cursor-not-allowed opacity-75 animate-none"
                     >
                         <Heart className="h-4 w-4 mr-2 fill-current" />
-                        Đã lưu
+                        {t('routeDetail.saved')}
                     </Button>
                 </div>
 
@@ -172,30 +174,30 @@ export default function SavedRouteDetailPage() {
                     <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
                         <div className="flex items-center gap-2 mb-1">
                             <Clock className="h-4 w-4 text-orange" />
-                            <h3 className="text-xs font-semibold text-gray-500 uppercase">Thời gian</h3>
+                            <h3 className="text-xs font-semibold text-gray-500 uppercase">{t('routeDetail.duration')}</h3>
                         </div>
-                        <p className="text-2xl font-bold text-navy">{route.summary.totalDuration} phút</p>
+                        <p className="text-2xl font-bold text-navy">{route.summary.totalDuration} {t('routeDetail.mins')}</p>
                     </div>
                     <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
                         <div className="flex items-center gap-2 mb-1">
                             <Coins className="h-4 w-4 text-orange" />
-                            <h3 className="text-xs font-semibold text-gray-500 uppercase">Chi phí</h3>
+                            <h3 className="text-xs font-semibold text-gray-500 uppercase">{t('routeDetail.cost')}</h3>
                         </div>
                         <p className="text-2xl font-bold text-navy">{(route.details?.total_fare || route.summary.totalCost || 0).toLocaleString()}₫</p>
                     </div>
                     <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
                         <div className="flex items-center gap-2 mb-1">
                             <Repeat className="h-4 w-4 text-orange" />
-                            <h3 className="text-xs font-semibold text-gray-500 uppercase">Số tuyến</h3>
+                            <h3 className="text-xs font-semibold text-gray-500 uppercase">{t('routeDetail.transfers')}</h3>
                         </div>
-                        <p className="text-2xl font-bold text-navy">{route.summary.transfers} lần</p>
+                        <p className="text-2xl font-bold text-navy">{route.summary.transfers} {t('routeDetail.times')}</p>
                     </div>
                     <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
                         <div className="flex items-center gap-2 mb-1">
                             <PersonStanding className="h-4 w-4 text-orange" />
-                            <h3 className="text-xs font-semibold text-gray-500 uppercase">Đi bộ</h3>
+                            <h3 className="text-xs font-semibold text-gray-500 uppercase">{t('routeDetail.walking')}</h3>
                         </div>
-                        <p className="text-2xl font-bold text-navy">{Math.ceil((route.details?.walking_time_sec || 0) / 60)} phút</p>
+                        <p className="text-2xl font-bold text-navy">{Math.ceil((route.details?.walking_time_sec || 0) / 60)} {t('routeDetail.mins')}</p>
                     </div>
                 </div>
             </header>
@@ -207,7 +209,7 @@ export default function SavedRouteDetailPage() {
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                         {loadingGeometries && (
                             <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur px-4 py-2 rounded-full shadow-lg border border-orange z-10">
-                                <p className="text-sm text-orange font-semibold">Đang tải đường đi...</p>
+                                <p className="text-sm text-orange font-semibold">{t('routeDetail.loadingRoute')}</p>
                             </div>
                         )}
                         <div className="h-[500px]">
@@ -223,7 +225,7 @@ export default function SavedRouteDetailPage() {
                 {/* Step-by-Step Instructions */}
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                     <h2 className="text-xl font-bold text-navy mb-6 pb-4 border-b border-gray-100">
-                        Chi tiết
+                        {t('routeDetail.details')}
                     </h2>
                     <div className="space-y-4">
                         {route.segments.map((segment: any, idx: number) => (
@@ -245,7 +247,7 @@ export default function SavedRouteDetailPage() {
                                             <div>
                                                 <h3 className="font-bold text-navy mb-2 flex items-center gap-2">
                                                     <Footprints className="h-4 w-4" />
-                                                    Đi bộ
+                                                    {t('routeDetail.walkInstruction')}
                                                 </h3>
                                                 <p className="text-sm text-gray-600 mb-1">
                                                     {segment.fromStopName || route.from.name}
@@ -254,28 +256,28 @@ export default function SavedRouteDetailPage() {
                                                 </p>
                                                 <p className="text-xs text-gray-500 flex items-center gap-1">
                                                     <Clock className="h-3 w-3" />
-                                                    Khoảng {segment.duration} phút
+                                                    {t('routeDetail.aboutDuration', { duration: segment.duration })}
                                                 </p>
                                             </div>
                                         ) : (
                                             <div>
                                                 <h3 className="font-bold text-navy mb-2 flex items-center gap-2">
                                                     <Bus className="h-4 w-4" />
-                                                    Đi xe buýt {segment.lineName}
+                                                    {t('routeDetail.takeBus', { lineName: segment.lineName })}
                                                 </h3>
                                                 <div className="space-y-2 text-sm">
                                                     <div className="bg-green-50 border border-green-200 rounded-lg p-2">
-                                                        <p className="text-xs text-green-700 font-semibold mb-1">Lên xe tại:</p>
+                                                        <p className="text-xs text-green-700 font-semibold mb-1">{t('routeDetail.boardAt')}</p>
                                                         <p className="text-green-900">{segment.fromStopName}</p>
                                                     </div>
                                                     <div className="bg-red-50 border border-red-200 rounded-lg p-2">
-                                                        <p className="text-xs text-red-700 font-semibold mb-1">Xuống xe tại:</p>
-                                                        <p className="text-red-900">{segment.toStopName}</p>
+                                                        <p className="text-xs text-red-700 font-semibold mb-1">{t('routeDetail.alightAt')}</p>
+                                                        <p className="text-green-900">{segment.toStopName}</p>
                                                     </div>
                                                     <div className="flex gap-4 text-xs text-gray-500 pt-1">
                                                         <span className="flex items-center gap-1">
                                                             <Clock className="h-3 w-3" />
-                                                            {segment.duration} phút
+                                                            {segment.duration} {t('routeDetail.mins')}
                                                         </span>
                                                         {segment.cost && segment.cost > 0 && (
                                                             <span className="flex items-center gap-1">
@@ -298,7 +300,7 @@ export default function SavedRouteDetailPage() {
                                 <CheckCircle className="h-5 w-5" />
                             </div>
                             <div className="flex-1">
-                                <h3 className="font-bold text-green-600">Đến nơi!</h3>
+                                <h3 className="font-bold text-green-600">{t('routeDetail.arrived')}</h3>
                                 <p className="text-sm text-gray-600">{route.to.name}</p>
                             </div>
                         </div>

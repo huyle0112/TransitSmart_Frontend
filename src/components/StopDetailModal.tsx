@@ -1,5 +1,6 @@
 import { X, MapPin, Clock, Bus, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useTranslation } from 'react-i18next';
 
 interface StopDetailModalProps {
     stop: any;
@@ -7,6 +8,7 @@ interface StopDetailModalProps {
 }
 
 export default function StopDetailModal({ stop, onClose }: StopDetailModalProps) {
+    const { t } = useTranslation();
     if (!stop) return null;
 
     return (
@@ -42,7 +44,7 @@ export default function StopDetailModal({ stop, onClose }: StopDetailModalProps)
                                 </span>
                                 <span className="flex items-center gap-1">
                                     <Clock className="h-4 w-4" />
-                                    ~{Math.round(stop.walkingDuration)} phút đi bộ
+                                    ~{Math.round(stop.walkingDuration)} {t('stops.minutesWalk')}
                                 </span>
                             </div>
                         </div>
@@ -56,7 +58,7 @@ export default function StopDetailModal({ stop, onClose }: StopDetailModalProps)
                         <div className="flex items-center gap-2 mb-4">
                             <Bus className="h-5 w-5 text-navy" />
                             <h3 className="text-lg font-bold text-navy">
-                                Các tuyến xe buýt đi qua
+                                {t('stops.passingRoutes')}
                             </h3>
                         </div>
 
@@ -78,13 +80,13 @@ export default function StopDetailModal({ stop, onClose }: StopDetailModalProps)
                                                 </span>
                                                 <div>
                                                     <p className="font-semibold text-navy">
-                                                        Tuyến {route.name}
+                                                        {t('stops.route')} {route.name}
                                                     </p>
                                                     {route.destinationName && (
                                                         <p className="text-sm text-gray-600 flex items-center gap-1 mt-0.5">
                                                             <ArrowRight className="h-3.5 w-3.5" />
                                                             <span className="font-medium">
-                                                                Đi {route.destinationName}
+                                                                {t('stops.toDestination', { destination: route.destinationName })}
                                                             </span>
                                                         </p>
                                                     )}
@@ -96,7 +98,7 @@ export default function StopDetailModal({ stop, onClose }: StopDetailModalProps)
                                         <div className="bg-navy/5 p-3 rounded-lg border border-navy/10">
                                             <p className="text-xs font-semibold text-navy mb-2 flex items-center gap-1">
                                                 <Clock className="h-3.5 w-3.5" />
-                                                Xe sắp đến:
+                                                {t('stops.upcomingBuses')}
                                             </p>
                                             <div className="flex items-center gap-3">
                                                 {route.nextArrivals && route.nextArrivals.map((time: number, idx: number) => (
@@ -113,17 +115,17 @@ export default function StopDetailModal({ stop, onClose }: StopDetailModalProps)
                                                         <span className="font-bold text-lg">
                                                             {time}
                                                         </span>
-                                                        <span className="text-sm">phút</span>
+                                                        <span className="text-sm">{t('routeDetail.mins')}</span>
                                                     </div>
                                                 ))}
                                             </div>
                                             {route.nextArrivals && route.nextArrivals[0] && (
                                                 <p className="text-xs text-gray-500 mt-2 font-medium">
                                                     {route.nextArrivals[0] <= 3
-                                                        ? '🚀 Xe sắp đến, chuẩn bị lên xe!'
+                                                        ? t('stops.busArriving')
                                                         : route.nextArrivals[0] <= 5
-                                                        ? '⏰ Xe đang đến gần'
-                                                        : '⏱️ Bạn còn thời gian chờ'}
+                                                        ? t('stops.busApproaching')
+                                                        : t('stops.timeToWait')}
                                                 </p>
                                             )}
                                         </div>
@@ -131,10 +133,10 @@ export default function StopDetailModal({ stop, onClose }: StopDetailModalProps)
                                         {/* Frequency Info */}
                                         <div className="mt-3 flex items-center justify-between text-sm">
                                             <span className="text-gray-600">
-                                                Tần suất: <span className="font-semibold text-navy">15-20 phút/chuyến</span>
+                                                {t('stops.frequency')}: <span className="font-semibold text-navy">{t('stops.frequencyValue')}</span>
                                             </span>
                                             <span className="text-gray-600">
-                                                Giá vé: <span className="font-semibold text-orange">7,000đ</span>
+                                                {t('stops.fare')}: <span className="font-semibold text-orange">{t('routeCard.cost', { cost: '7,000' }).replace(/^[^:]+:\s*/, '')}</span>
                                             </span>
                                         </div>
                                     </div>
@@ -143,32 +145,32 @@ export default function StopDetailModal({ stop, onClose }: StopDetailModalProps)
                         ) : (
                             <div className="text-center py-8 text-gray-500">
                                 <Bus className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                                <p>Chưa có thông tin xe buýt cho trạm này</p>
+                                <p>{t('stops.noRoutesInfo')}</p>
                             </div>
                         )}
                     </div>
 
                     {/* Stop Info */}
                     <div className="border-t border-gray-100 pt-4">
-                        <h4 className="font-semibold text-navy mb-3">Thông tin trạm</h4>
+                        <h4 className="font-semibold text-navy mb-3">{t('stops.stopInfo')}</h4>
                         <div className="grid grid-cols-2 gap-3 text-sm">
                             <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
-                                <p className="text-gray-500 mb-1 font-medium">Khoảng cách</p>
+                                <p className="text-gray-500 mb-1 font-medium">{t('stops.distance')}</p>
                                 <p className="font-bold text-navy">{stop.distanceText}</p>
                             </div>
                             <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
-                                <p className="text-gray-500 mb-1 font-medium">Thời gian đi bộ</p>
-                                <p className="font-bold text-navy">~{Math.round(stop.walkingDuration)} phút</p>
+                                <p className="text-gray-500 mb-1 font-medium">{t('stops.walkingDuration')}</p>
+                                <p className="font-bold text-navy">~{Math.round(stop.walkingDuration)} {t('routeDetail.mins')}</p>
                             </div>
                             <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
-                                <p className="text-gray-500 mb-1 font-medium">Số tuyến đi qua</p>
+                                <p className="text-gray-500 mb-1 font-medium">{t('stops.numRoutes')}</p>
                                 <p className="font-bold text-navy">
-                                    {stop.busRoutes ? stop.busRoutes.length : 0} tuyến
+                                    {t('stops.routesCount', { count: stop.busRoutes ? stop.busRoutes.length : 0 })}
                                 </p>
                             </div>
                             <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
-                                <p className="text-gray-500 mb-1 font-medium">Loại trạm</p>
-                                <p className="font-bold text-navy capitalize">{stop.type || 'Trạm dừng'}</p>
+                                <p className="text-gray-500 mb-1 font-medium">{t('stops.stopType')}</p>
+                                <p className="font-bold text-navy capitalize">{stop.type || t('stops.stop')}</p>
                             </div>
                         </div>
                     </div>
@@ -181,7 +183,7 @@ export default function StopDetailModal({ stop, onClose }: StopDetailModalProps)
                         onClick={onClose}
                         className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-100"
                     >
-                        Đóng
+                        {t('stops.close')}
                     </Button>
                     <Button
                         className="flex-1 bg-navy hover:bg-navy/90 text-white"
@@ -190,7 +192,7 @@ export default function StopDetailModal({ stop, onClose }: StopDetailModalProps)
                             onClose();
                         }}
                     >
-                        Tìm tuyến từ đây
+                        {t('stops.findRoutesFromHere')}
                     </Button>
                 </div>
             </div>

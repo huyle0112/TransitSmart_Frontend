@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Loader2, LogIn } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export default function LoginPage() {
     const { login } = useAuth();
@@ -11,6 +12,7 @@ export default function LoginPage() {
     const [form, setForm] = useState({ email: '', password: '' });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const { t } = useTranslation();
 
     const handleSubmit = async (event: React.FormEvent) => {
         event.preventDefault();
@@ -27,7 +29,7 @@ export default function LoginPage() {
             navigate(redirectTo, { replace: true });
         } catch (err: any) {
             // Show exact error message from backend
-            const errorMessage = err?.response?.data?.message || err?.message || 'Không thể đăng nhập. Vui lòng thử lại.';
+            const errorMessage = err?.response?.data?.message || err?.message || t('auth.loginError');
             setError(errorMessage);
         } finally {
             setLoading(false);
@@ -41,8 +43,8 @@ export default function LoginPage() {
                     <LogIn className="h-4 w-4" />
                 </div>
                 <div>
-                    <h1 className="text-xl font-bold text-navy">Đăng nhập</h1>
-                    <p className="text-sm text-gray-500">Đồng bộ lộ trình và lịch sử tìm kiếm của bạn.</p>
+                    <h1 className="text-xl font-bold text-navy">{t('auth.loginTitle')}</h1>
+                    <p className="text-sm text-gray-500">{t('auth.loginSubtitle')}</p>
                 </div>
             </div>
 
@@ -50,7 +52,7 @@ export default function LoginPage() {
 
             <form className="space-y-4" onSubmit={handleSubmit}>
                 <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700" htmlFor="email">Email</label>
+                    <label className="text-sm font-medium text-gray-700" htmlFor="email">{t('auth.email')}</label>
                     <input
                         id="email"
                         type="text"
@@ -61,7 +63,7 @@ export default function LoginPage() {
                     />
                 </div>
                 <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700" htmlFor="password">Mật khẩu</label>
+                    <label className="text-sm font-medium text-gray-700" htmlFor="password">{t('auth.password')}</label>
                     <input
                         id="password"
                         type="password"
@@ -72,16 +74,17 @@ export default function LoginPage() {
                     />
                 </div>
 
-                <Button type="submit" className="w-full bg-orange hover:bg-orange-hover text-white" disabled={loading}>
+                <Button type="submit" className="w-full bg-orange hover:bg-orange-hover text-white cursor-pointer" disabled={loading}>
                     {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogIn className="h-4 w-4" />}
-                    <span className="ml-2">Đăng nhập</span>
+                    <span className="ml-2">{t('auth.loginNow')}</span>
                 </Button>
             </form>
 
             <p className="text-sm text-gray-500 mt-6 text-center">
-                Chưa có tài khoản?{' '}
-                <Link to="/register" className="text-orange font-semibold hover:underline">Đăng ký ngay</Link>
+                {t('auth.dontHaveAccount')}{' '}
+                <Link to="/register" className="text-orange font-semibold hover:underline">{t('auth.registerNow')}</Link>
             </p>
         </div>
     );
 }
+

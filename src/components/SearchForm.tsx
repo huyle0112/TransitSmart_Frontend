@@ -4,6 +4,7 @@ import PlaceAutocomplete from './PlaceAutocomplete';
 import { reverseGeocode } from '@/services/geocoding';
 import { Button } from '@/components/ui/button';
 import { Crosshair, Search } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface SearchFormProps {
     onSubmit: (data: { from: any; to: any }) => void;
@@ -16,6 +17,7 @@ export default function SearchForm({ onSubmit, initialFrom, initialTo }: SearchF
     const [toPlace, setToPlace] = useState(initialTo || null);
     const [errors, setErrors] = useState<Record<string, string>>({});
     const { requestPosition, loading: locating, error: geoError } = useGeolocation();
+    const { t } = useTranslation();
 
     const handleFromChange = (place: any) => {
         setFromPlace(place);
@@ -34,10 +36,10 @@ export default function SearchForm({ onSubmit, initialFrom, initialTo }: SearchF
     const validate = () => {
         const newErrors: Record<string, string> = {};
         if (!fromPlace || !fromPlace.coords) {
-            newErrors.from = 'Vui lòng chọn điểm đi từ danh sách gợi ý';
+            newErrors.from = t('searchForm.selectFromFromSuggestions');
         }
         if (!toPlace || !toPlace.coords) {
-            newErrors.to = 'Vui lòng chọn điểm đến từ danh sách gợi ý';
+            newErrors.to = t('searchForm.selectToFromSuggestions');
         }
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
@@ -59,13 +61,13 @@ export default function SearchForm({ onSubmit, initialFrom, initialTo }: SearchF
             try {
                 const locationInfo = await reverseGeocode([coords.lat, coords.lng]);
                 setFromPlace({
-                    label: 'Vị trí của tôi',
+                    label: t('searchForm.myLocation'),
                     fullName: locationInfo.name,
                     coords: coords,
                 });
             } catch {
                 setFromPlace({
-                    label: 'Vị trí của tôi',
+                    label: t('searchForm.myLocation'),
                     coords: coords,
                 });
             }
@@ -74,7 +76,7 @@ export default function SearchForm({ onSubmit, initialFrom, initialTo }: SearchF
         } catch (err: any) {
             setErrors((prev) => ({
                 ...prev,
-                from: err.message || geoError || 'Lỗi xác định vị trí',
+                from: err.message || geoError || t('searchForm.locationError'),
             }));
         }
     };
@@ -82,13 +84,13 @@ export default function SearchForm({ onSubmit, initialFrom, initialTo }: SearchF
     return (
         <form className="bg-white p-6 rounded-xl shadow-lg border border-gray-100 space-y-4" onSubmit={handleSubmit}>
             <div className="space-y-2">
-                <label htmlFor="from" className="text-sm font-medium text-gray-700">Điểm đi</label>
+                <label htmlFor="from" className="text-sm font-medium text-gray-700">{t('home.from')}</label>
                 <div className="flex gap-2">
                     <PlaceAutocomplete
                         id="from"
                         value={fromPlace}
                         onChange={handleFromChange}
-                        placeholder="Nhập địa chỉ hoặc địa điểm..."
+                        placeholder={t('searchForm.enterAddressOrLocation')}
                         error={errors.from}
                         className="flex-1"
                     />
@@ -97,8 +99,8 @@ export default function SearchForm({ onSubmit, initialFrom, initialTo }: SearchF
                         variant="outline"
                         onClick={handleUseLocation}
                         disabled={locating}
-                        className="shrink-0"
-                        title="Sử dụng vị trí của tôi"
+                        className="shrink-0 cursor-pointer"
+                        title={t('searchForm.useMyLocation')}
                     >
                         <Crosshair className={`h-4 w-4 ${locating ? 'animate-spin' : ''}`} />
                     </Button>
@@ -107,12 +109,12 @@ export default function SearchForm({ onSubmit, initialFrom, initialTo }: SearchF
             </div>
 
             <div className="space-y-2">
-                <label htmlFor="to" className="text-sm font-medium text-gray-700">Điểm đến</label>
+                <label htmlFor="to" className="text-sm font-medium text-gray-700">{t('home.to')}</label>
                 <PlaceAutocomplete
                     id="to"
                     value={toPlace}
                     onChange={handleToChange}
-                    placeholder="Nhập địa chỉ hoặc địa điểm..."
+                    placeholder={t('searchForm.enterAddressOrLocation')}
                     error={errors.to}
                 />
                 {errors.to && <p className="text-xs text-red-500">{errors.to}</p>}
@@ -121,14 +123,15 @@ export default function SearchForm({ onSubmit, initialFrom, initialTo }: SearchF
             {geoError && <p className="text-xs text-red-500">{geoError}</p>}
 
             <div className="pt-2">
-                <Button type="submit" className="w-full bg-orange hover:bg-orange-hover text-white">
+                <Button type="submit" className="w-full bg-orange hover:bg-orange-hover text-white cursor-pointer">
                     <Search className="mr-2 h-4 w-4" />
-                    Tìm kiếm lộ trình
+                    {t('home.searchButton')}
                 </Button>
                 <p className="text-xs text-gray-500 mt-2 text-center">
-                    Nhập tối thiểu 3 ký tự để tìm kiếm địa điểm.
+                    {t('searchForm.minCharsPrompt')}
                 </p>
             </div>
         </form>
     );
 }
+

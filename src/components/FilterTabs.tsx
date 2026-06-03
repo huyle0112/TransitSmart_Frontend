@@ -1,10 +1,5 @@
 import { Button } from "@/components/ui/button";
-
-const FILTERS = [
-    { id: 'fastest', label: 'Nhanh nhất' },
-    { id: 'fewest_transfers', label: 'Ít chuyển' },
-    { id: 'cheapest', label: 'Rẻ nhất' },
-];
+import { useTranslation } from "react-i18next";
 
 interface FilterTabsProps {
     activeFilter: string;
@@ -12,6 +7,14 @@ interface FilterTabsProps {
 }
 
 export default function FilterTabs({ activeFilter, onChange }: FilterTabsProps) {
+    const { t } = useTranslation();
+
+    const FILTERS = [
+        { id: 'fastest', label: t('home.fastest') },
+        { id: 'fewest_transfers', label: t('home.fewestTransfers') },
+        { id: 'least_walking', label: t('home.leastWalking') },
+    ];
+
     return (
         <div className="flex gap-2 p-1 bg-gray-100 rounded-lg w-fit">
             {FILTERS.map((filter) => (

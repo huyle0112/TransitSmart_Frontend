@@ -2,16 +2,19 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { User, LogOut, Menu, X } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import { LanguageSwitcher } from "./LanguageSwitcher";
 
 const Header = () => {
   const { isAuthenticated, user, logout, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { t } = useTranslation();
 
   const navLinks = [
-    { to: "/", label: "Tìm lộ trình" },
-    { to: "/lines", label: "Tra cứu tuyến" },
-    { to: "/stops", label: "Tra cứu điểm dừng" },
+    { to: "/", label: t("nav.searchRoute") },
+    { to: "/lines", label: t("nav.searchLines") },
+    { to: "/stops", label: t("nav.searchStops") },
   ];
 
   const handleLogout = () => {
@@ -58,6 +61,7 @@ const Header = () => {
 
           {/* User Menu - Desktop */}
           <nav className="hidden md:flex items-center gap-6">
+            <LanguageSwitcher />
             {isAuthenticated ? (
               <>
                 <Link
@@ -82,15 +86,15 @@ const Header = () => {
                     to="/admin"
                     className="px-4 py-2 bg-orange hover:bg-orange/90 rounded-lg font-medium transition-colors"
                   >
-                    Admin Panel
+                    {t("nav.adminPanel")}
                   </Link>
                 )}
                 <button
                   onClick={handleLogout}
-                  className="flex items-center gap-2 hover:text-orange transition-colors"
+                  className="flex items-center gap-2 hover:text-orange transition-colors cursor-pointer"
                 >
                   <LogOut className="h-5 w-5" />
-                  <span className="hidden lg:inline">Đăng xuất</span>
+                  <span className="hidden lg:inline">{t("nav.logout")}</span>
                 </button>
               </>
             ) : (
@@ -99,13 +103,13 @@ const Header = () => {
                   to="/login"
                   className="hover:text-orange transition-colors"
                 >
-                  Đăng nhập
+                  {t("nav.login")}
                 </Link>
                 <Link
                   to="/register"
                   className="px-4 py-2 bg-orange hover:bg-orange/90 rounded-lg font-medium transition-colors"
                 >
-                  Đăng ký
+                  {t("nav.register")}
                 </Link>
               </>
             )}
@@ -114,7 +118,7 @@ const Header = () => {
           {/* Mobile Menu Button */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-2 hover:bg-white/10 rounded-lg transition-colors"
+            className="md:hidden p-2 hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
             aria-label="Toggle menu"
           >
             {mobileMenuOpen ? (
@@ -144,6 +148,14 @@ const Header = () => {
               {/* Separator */}
               <div className="h-px bg-white/20 my-1"></div>
 
+              {/* Language Switcher - Mobile */}
+              <div className="flex justify-center py-2">
+                <LanguageSwitcher />
+              </div>
+
+              {/* Separator */}
+              <div className="h-px bg-white/20 my-1"></div>
+
               {isAuthenticated ? (
                 <>
                   <Link
@@ -162,7 +174,7 @@ const Header = () => {
                     )}
                     <div className="flex flex-col min-w-0 flex-1">
                       <span className="font-medium truncate">
-                        {user?.name || "Tài khoản"}
+                        {user?.name || t("home.yourLocation")}
                       </span>
                       <span className="text-sm text-white/70 truncate">
                         {user?.email}
@@ -175,15 +187,15 @@ const Header = () => {
                       className="px-4 py-3 bg-orange hover:bg-orange/90 rounded-lg font-medium transition-colors text-center"
                       onClick={closeMobileMenu}
                     >
-                      Admin Panel
+                      {t("nav.adminPanel")}
                     </Link>
                   )}
                   <button
                     onClick={handleLogout}
-                    className="flex items-center justify-center gap-3 p-3 hover:bg-white/10 rounded-lg transition-colors"
+                    className="flex items-center justify-center gap-3 p-3 hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
                   >
                     <LogOut className="h-5 w-5" />
-                    <span>Đăng xuất</span>
+                    <span>{t("nav.logout")}</span>
                   </button>
                 </>
               ) : (
@@ -193,14 +205,14 @@ const Header = () => {
                     className="px-4 py-3 hover:bg-white/10 rounded-lg transition-colors text-center font-medium"
                     onClick={closeMobileMenu}
                   >
-                    Đăng nhập
+                    {t("nav.login")}
                   </Link>
                   <Link
                     to="/register"
                     className="px-4 py-3 bg-orange hover:bg-orange/90 rounded-lg font-medium transition-colors text-center"
                     onClick={closeMobileMenu}
                   >
-                    Đăng ký
+                    {t("nav.register")}
                   </Link>
                 </>
               )}
@@ -213,3 +225,4 @@ const Header = () => {
 };
 
 export default Header;
+

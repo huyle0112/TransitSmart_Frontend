@@ -1,6 +1,7 @@
-import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Search, MapPin, Loader2, Trash2, Crosshair } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 import SimpleMapViewer from '@/components/SimpleMapViewer';
 import PlaceAutocomplete from '@/components/PlaceAutocomplete';
@@ -22,6 +23,21 @@ export default function HomePage() {
     const { isAuthenticated } = useAuth();
     const { requestPosition, loading: locating } = useGeolocation();
     const [searchParams, setSearchParams] = useSearchParams();
+    const { t } = useTranslation();
+
+    const [showHero, setShowHero] = useState(false);
+
+    useEffect(() => {
+        const visited = localStorage.getItem('has-visited-transit-smart');
+        if (!visited) {
+            setShowHero(true);
+        }
+    }, []);
+
+    const handleStart = () => {
+        localStorage.setItem('has-visited-transit-smart', 'true');
+        setShowHero(false);
+    };
 
     // --- Refs ---
     const mainContentRef = useRef<HTMLDivElement>(null);
@@ -40,12 +56,25 @@ export default function HomePage() {
     const savedState = getSavedState();
 
     // --- States ---
+    const defaultFrom = {
+        label: "Đại học Bách khoa Hà Nội, Đường Đại Cồ Việt",
+        fullName: "Đại học Bách khoa Hà Nội, Đường Đại Cồ Việt",
+        coords: { lat: 21.0064, lng: 105.8431 }
+    };
+
+    const defaultTo = {
+        label: "Lancaster Luminaire, Đường Láng",
+        fullName: "Lancaster Luminaire, Đường Láng",
+        coords: { lat: 21.018, lng: 105.807 }
+    };
+
+    // --- States ---
     const [sidebarWidth, setSidebarWidth] = useState(400);
     // State kiểm tra màn hình Desktop (để xử lý responsive logic trong JS nếu cần)
     const [isDesktop, setIsDesktop] = useState(true);
 
-    const [fromPlace, setFromPlace] = useState<any>(savedState.from || null);
-    const [toPlace, setToPlace] = useState<any>(savedState.to || null);
+    const [fromPlace, setFromPlace] = useState<any>(savedState.from || defaultFrom);
+    const [toPlace, setToPlace] = useState<any>(savedState.to || defaultTo);
     const [activeField, setActiveField] = useState<'from' | 'to' | null>(null);
     const [routes, setRoutes] = useState<any[]>(savedState.routes || []);
     const [loading, setLoading] = useState(false);
@@ -153,8 +182,8 @@ export default function HomePage() {
             const coords = await requestPosition();
 
             let newPlace = {
-                label: 'Vị trí của bạn',
-                fullName: 'Đang xác định địa chỉ...',
+                label: t('home.yourLocation'),
+                fullName: t('home.determiningAddress'),
                 coords: coords
             };
             setFromPlace(newPlace);
@@ -162,7 +191,7 @@ export default function HomePage() {
             try {
                 const placeInfo = await reverseGeocode([coords.lat, coords.lng]);
                 newPlace = {
-                    label: placeInfo.shortName || 'Vị trí của bạn',
+                    label: placeInfo.shortName || t('home.yourLocation'),
                     fullName: placeInfo.name,
                     coords: coords
                 };
@@ -171,7 +200,7 @@ export default function HomePage() {
                 console.warn('Reverse geocode failed');
             }
         } catch (err: any) {
-            setError(err.message || 'Không thể lấy vị trí hiện tại.');
+            setError(err.message || t('home.getCurrentLocation') + ' failed');
         }
     };
 
@@ -220,13 +249,13 @@ export default function HomePage() {
                     // Transform segments to expected format (backend already includes walking segment)
                     const transformedSegments = route.segments.map((seg: any) => ({
                         lineId: seg.lineId || 'walk',
-                        lineName: seg.lineName || 'Đi bộ',
+                        lineName: seg.lineName || (seg.mode === 'walk' ? t('home.leastWalking') : 'Transit'),
                         mode: seg.mode,
                         duration: seg.duration_min || Math.ceil((seg.duration_sec || 0) / 60),
                         cost: seg.fare || 0,
                         from: seg.from_stop || 'origin',
                         to: seg.to_stop,
-                        fromStopName: seg.fromStopName || (seg.from_coordinates ? fromPlace.label || 'Điểm xuất phát' : ''),
+                        fromStopName: seg.fromStopName || (seg.from_coordinates ? fromPlace.label || t('home.from') : ''),
                         toStopName: seg.toStopName,
                         // Keep coordinates for ORS geometry fetching
                         from_coordinates: seg.from_coordinates,
@@ -236,7 +265,7 @@ export default function HomePage() {
 
                     return {
                         id: route.route_id,
-                        title: route.summary || 'Lộ trình',
+                        title: route.summary || 'Route',
                         filters: route.filters || [], // Filter tags from backend
                         from: {
                             id: route.origin_stop?.id,
@@ -247,7 +276,7 @@ export default function HomePage() {
                             }
                         },
                         to: {
-                            name: 'Điểm đến',
+                            name: t('home.to'),
                             coords: route.destination_coordinates
                         },
                         segments: transformedSegments, // Use backend segments (includes walking)
@@ -263,7 +292,7 @@ export default function HomePage() {
 
                 setRoutes(transformedRoutes);
             } else {
-                setError('Không tìm thấy lộ trình phù hợp.');
+                setError(t('home.noRouteFound'));
             }
 
             // Nếu là Desktop thì scroll xuống, còn Mobile thì map đã ở trên rồi ko cần scroll
@@ -274,6 +303,14 @@ export default function HomePage() {
             setLoading(false);
         }
     };
+
+    useEffect(() => {
+        // Auto-search default route on mount if no routes exist in savedState
+        if (fromPlace?.coords && toPlace?.coords && routes.length === 0) {
+            handleSearch();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const handleClear = () => {
         setFromPlace(null);
@@ -287,12 +324,49 @@ export default function HomePage() {
     // --- Helpers ---
     const mapCoordinates = useMemo(() => {
         const coords = [];
-        if (fromPlace?.coords) coords.push({ ...fromPlace, name: 'Điểm đi' });
-        if (toPlace?.coords) coords.push({ ...toPlace, name: 'Điểm đến' });
+        if (fromPlace?.coords) coords.push({ ...fromPlace, name: t('home.from') });
+        if (toPlace?.coords) coords.push({ ...toPlace, name: t('home.to') });
         return coords;
-    }, [fromPlace, toPlace]);
+    }, [fromPlace, toPlace, t]);
 
-    const activeRoute = routes[0];
+    // Sort routes dynamically based on selected filter
+    const sortedRoutes = useMemo(() => {
+        return routes
+            .slice()
+            .sort((a, b) => {
+                const aIsWalkOnly = a.segments?.every((seg: any) => seg.mode === 'walk') ?? false;
+                const bIsWalkOnly = b.segments?.every((seg: any) => seg.mode === 'walk') ?? false;
+
+                if (aIsWalkOnly && !bIsWalkOnly) return 1;
+                if (!aIsWalkOnly && bIsWalkOnly) return -1;
+
+                if (selectedFilter === 'fastest') {
+                    const aDuration = a.summary?.totalDuration ?? Infinity;
+                    const bDuration = b.summary?.totalDuration ?? Infinity;
+                    if (aDuration !== bDuration) {
+                        return aDuration - bDuration;
+                    }
+                    return (a.summary?.transfers ?? 0) - (b.summary?.transfers ?? 0);
+                } else if (selectedFilter === 'fewest_transfers') {
+                    const aTransfers = a.summary?.transfers ?? Infinity;
+                    const bTransfers = b.summary?.transfers ?? Infinity;
+                    if (aTransfers !== bTransfers) {
+                        return aTransfers - bTransfers;
+                    }
+                    return (a.summary?.totalDuration ?? Infinity) - (b.summary?.totalDuration ?? Infinity);
+                } else if (selectedFilter === 'least_walking') {
+                    const aWalkTime = a.details?.walking_time_sec ?? Infinity;
+                    const bWalkTime = b.details?.walking_time_sec ?? Infinity;
+                    if (aWalkTime !== bWalkTime) {
+                        return aWalkTime - bWalkTime;
+                    }
+                    return (a.summary?.totalDuration ?? Infinity) - (b.summary?.totalDuration ?? Infinity);
+                }
+                return 0;
+            });
+    }, [routes, selectedFilter]);
+
+    const activeRoute = sortedRoutes[0];
 
     // Helper tạo class chung cho các ô input
     const getContainerClass = (field: 'from' | 'to') => {
@@ -305,7 +379,7 @@ export default function HomePage() {
         <div className="flex flex-col min-h-screen">
 
             {/* --- VIDEO HERO SECTION --- */}
-            <VideoHero onStartClick={handleScrollDown} />
+            {showHero && <VideoHero onStartClick={handleStart} />}
 
             {/* --- GIAO DIỆN BẢN ĐỒ & TÌM KIẾM --- */}
             <div
@@ -322,10 +396,10 @@ export default function HomePage() {
                 >
                     <div className="p-4 border-b border-gray-100 bg-white">
                         <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-lg font-bold text-navy">Tra cứu lộ trình</h2>
+                            <h2 className="text-lg font-bold text-navy">{t('home.searchRouteTitle')}</h2>
                             {(fromPlace || toPlace || routes.length > 0) && (
-                                <Button variant="ghost" size="sm" onClick={handleClear} className="text-red-500 hover:text-red-600 hover:bg-red-50 h-8 px-2">
-                                    <Trash2 className="h-4 w-4 mr-1" /> Xóa
+                                <Button variant="ghost" size="sm" onClick={handleClear} className="text-red-500 hover:text-red-600 hover:bg-red-50 h-8 px-2 cursor-pointer">
+                                    <Trash2 className="h-4 w-4 mr-1" /> {t('home.clear')}
                                 </Button>
                             )}
                         </div>
@@ -340,14 +414,14 @@ export default function HomePage() {
                                     <div className="flex items-center gap-2 mb-1">
                                         <div className="w-2 h-2 rounded-full bg-blue-600 shadow-sm"></div>
                                         <span className={`text-xs font-bold ${activeField === 'from' ? 'text-orange' : 'text-gray-500'}`}>
-                                            Điểm đi {activeField === 'from' && '(Đang chọn...)'}
+                                            {t('home.from')} {activeField === 'from' && `(${t('home.selecting')})`}
                                         </span>
                                     </div>
                                     <PlaceAutocomplete
                                         key={`from-${resetKey}`}
                                         value={fromPlace}
                                         onChange={setFromPlace}
-                                        placeholder="Nhập hoặc click bản đồ"
+                                        placeholder={t('home.fromPlaceholder')}
                                         className="border-none shadow-none p-0 h-auto bg-transparent placeholder:text-gray-400 focus-visible:ring-0 w-full"
                                     />
                                 </div>
@@ -355,13 +429,13 @@ export default function HomePage() {
                                     <Button
                                         variant="ghost"
                                         size="icon"
-                                        className="h-8 w-8 text-gray-400 hover:text-blue-600 hover:bg-blue-100/50 rounded-full transition-all"
+                                        className="h-8 w-8 text-gray-400 hover:text-blue-600 hover:bg-blue-100/50 rounded-full transition-all cursor-pointer"
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             handleUseCurrentLocation();
                                         }}
                                         disabled={locating}
-                                        title="Lấy vị trí hiện tại"
+                                        title={t('home.getCurrentLocation')}
                                     >
                                         {locating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Crosshair className="h-4 w-4" />}
                                     </Button>
@@ -374,14 +448,14 @@ export default function HomePage() {
                                     <div className="flex items-center gap-2 mb-1">
                                         <div className="w-2 h-2 rounded-full bg-red-600 shadow-sm"></div>
                                         <span className={`text-xs font-bold ${activeField === 'to' ? 'text-orange' : 'text-gray-500'}`}>
-                                            Điểm đến {activeField === 'to' && '(Đang chọn...)'}
+                                            {t('home.to')} {activeField === 'to' && `(${t('home.selecting')})`}
                                         </span>
                                     </div>
                                     <PlaceAutocomplete
                                         key={`to-${resetKey}`}
                                         value={toPlace}
                                         onChange={setToPlace}
-                                        placeholder="Nhập hoặc click bản đồ"
+                                        placeholder={t('home.toPlaceholder')}
                                         className="border-none shadow-none p-0 h-auto bg-transparent placeholder:text-gray-400 focus-visible:ring-0 w-full"
                                     />
                                 </div>
@@ -390,10 +464,10 @@ export default function HomePage() {
                             <Button
                                 onClick={handleSearch}
                                 disabled={loading || !fromPlace || !toPlace}
-                                className="w-full bg-navy hover:bg-navy/90 text-white mt-2 py-3 md:py-6 font-bold text-base shadow-sm"
+                                className="w-full bg-navy hover:bg-navy/90 text-white mt-2 py-3 md:py-6 font-bold text-base shadow-sm cursor-pointer"
                             >
                                 {loading ? <Loader2 className="animate-spin h-5 w-5" /> : <Search className="h-5 w-5 mr-2" />}
-                                Tìm lộ trình
+                                {loading ? t('home.searching') : t('home.searchButton')}
                             </Button>
                         </div>
                     </div>
@@ -408,90 +482,50 @@ export default function HomePage() {
                                 <div className="inline-flex rounded-lg border border-orange overflow-hidden w-full max-w-md">
                                     <button
                                         onClick={() => setSelectedFilter('fastest')}
-                                        className={`flex-1 px-4 py-2 text-xs font-semibold transition-all border-r border-orange ${selectedFilter === 'fastest'
+                                        className={`flex-1 px-4 py-2 text-xs font-semibold transition-all border-r border-orange cursor-pointer ${selectedFilter === 'fastest'
                                             ? 'bg-orange text-white'
                                             : 'bg-white text-orange hover:bg-orange/10'
                                             }`}
                                     >
-                                        Nhanh nhất
+                                        {t('home.fastest')}
                                     </button>
                                     <button
                                         onClick={() => setSelectedFilter('fewest_transfers')}
-                                        className={`flex-1 px-4 py-2 text-xs font-semibold transition-all border-r border-orange ${selectedFilter === 'fewest_transfers'
+                                        className={`flex-1 px-4 py-2 text-xs font-semibold transition-all border-r border-orange cursor-pointer ${selectedFilter === 'fewest_transfers'
                                             ? 'bg-orange text-white'
                                             : 'bg-white text-orange hover:bg-orange/10'
                                             }`}
                                     >
-                                        Ít chuyển tuyến
+                                        {t('home.fewestTransfers')}
                                     </button>
                                     <button
                                         onClick={() => setSelectedFilter('least_walking')}
-                                        className={`flex-1 px-4 py-2 text-xs font-semibold transition-all ${selectedFilter === 'least_walking'
+                                        className={`flex-1 px-4 py-2 text-xs font-semibold transition-all cursor-pointer ${selectedFilter === 'least_walking'
                                             ? 'bg-orange text-white'
                                             : 'bg-white text-orange hover:bg-orange/10'
                                             }`}
                                     >
-                                        Ít đi bộ
+                                        {t('home.leastWalking')}
                                     </button>
                                 </div>
                             </div>
                         )}
 
                         <div className="space-y-4">
-                            {routes
-                                .slice() // Create a copy to avoid mutating original array
-                                .sort((a, b) => {
-                                    // Check if routes are walking-only (all segments are walking)
-                                    const aIsWalkOnly = a.segments?.every((seg: any) => seg.mode === 'walk') ?? false;
-                                    const bIsWalkOnly = b.segments?.every((seg: any) => seg.mode === 'walk') ?? false;
-
-                                    // Always put walking-only routes at the bottom
-                                    if (aIsWalkOnly && !bIsWalkOnly) return 1;
-                                    if (!aIsWalkOnly && bIsWalkOnly) return -1;
-
-                                    // If both are walking-only or both are not, sort based on selected filter
-                                    if (selectedFilter === 'fastest') {
-                                        const aDuration = a.summary?.totalDuration ?? Infinity;
-                                        const bDuration = b.summary?.totalDuration ?? Infinity;
-                                        if (aDuration !== bDuration) {
-                                            return aDuration - bDuration;
-                                        }
-                                        // Tie-breaker: fewer transfers is better
-                                        return (a.summary?.transfers ?? 0) - (b.summary?.transfers ?? 0);
-                                    } else if (selectedFilter === 'fewest_transfers') {
-                                        const aTransfers = a.summary?.transfers ?? Infinity;
-                                        const bTransfers = b.summary?.transfers ?? Infinity;
-                                        if (aTransfers !== bTransfers) {
-                                            return aTransfers - bTransfers;
-                                        }
-                                        // Tie-breaker: faster is better
-                                        return (a.summary?.totalDuration ?? Infinity) - (b.summary?.totalDuration ?? Infinity);
-                                    } else if (selectedFilter === 'least_walking') {
-                                        // Use total walking time from route details (in seconds, convert to minutes)
-                                        const aWalkTime = a.details?.walking_time_sec ?? Infinity;
-                                        const bWalkTime = b.details?.walking_time_sec ?? Infinity;
-                                        if (aWalkTime !== bWalkTime) {
-                                            return aWalkTime - bWalkTime;
-                                        }
-                                        // Tie-breaker: faster is better
-                                        return (a.summary?.totalDuration ?? Infinity) - (b.summary?.totalDuration ?? Infinity);
-                                    }
-                                    return 0;
-                                })
-                                .map((route, idx) => (
-                                    <RouteSummaryCard
-                                        key={idx}
-                                        route={route}
-                                        highlight={idx === 0}
-                                        onSaveFavorite={isAuthenticated ? (id) => saveFavorite({ routeId: id }) : undefined}
-                                    />
-                                ))}
+                            {sortedRoutes.map((route, idx) => (
+                                <RouteSummaryCard
+                                    key={idx}
+                                    route={route}
+                                    highlight={idx === 0}
+                                    onSaveFavorite={isAuthenticated ? (id) => saveFavorite({ routeId: id }) : undefined}
+                                />
+                            ))}
                         </div>
 
                         {!loading && routes.length === 0 && !error && (
                             <div className="text-center text-gray-400 py-12 text-sm flex flex-col items-center">
                                 <MapPin className="h-10 w-10 mb-3 opacity-20" />
-                                <p>Chọn điểm đi và điểm đến trên bản đồ<br />để bắt đầu tìm kiếm.</p>
+                                <p className="whitespace-pre-line">{t('home.selectOnMapPrompt')}</p>
                             </div>
                         )}
                     </div>
@@ -522,7 +556,7 @@ export default function HomePage() {
                     {activeField && (
                         <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur px-3 py-1.5 md:px-4 md:py-2 rounded-full shadow-lg border border-orange z-[1000] text-xs md:text-sm font-medium text-orange flex items-center animate-bounce whitespace-nowrap">
                             <MapPin className="h-3 w-3 md:h-4 md:w-4 mr-2" />
-                            Đang chọn {activeField === 'from' ? 'Điểm đi' : 'Điểm đến'}...
+                            {activeField === 'from' ? t('home.selectFromOnMap') : t('home.selectToOnMap')}
                         </div>
                     )}
                 </div>

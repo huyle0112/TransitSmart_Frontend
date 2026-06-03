@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { searchPlaces, Place } from '@/services/geocoding';
 import { MapPin, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
 
 interface PlaceAutocompleteProps {
     value: any;
@@ -20,6 +21,7 @@ export default function PlaceAutocomplete({
     error,
     className
 }: PlaceAutocompleteProps) {
+    const { t } = useTranslation();
     const [inputValue, setInputValue] = useState(value?.label || '');
     const [suggestions, setSuggestions] = useState<Place[]>([]);
     const [isOpen, setIsOpen] = useState(false);
@@ -161,7 +163,7 @@ export default function PlaceAutocomplete({
 
             {isOpen && !isLoading && suggestions.length === 0 && inputValue.length >= 3 && (
                 <div className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg p-4 text-sm text-gray-500 text-center">
-                    Không tìm thấy địa điểm phù hợp
+                    {t('autocomplete.noMatchingPlace')}
                 </div>
             )}
         </div>
