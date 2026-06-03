@@ -3,12 +3,14 @@ import { searchBusRoutes } from '@/services/api';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Search, Loader2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface BusRouteSearchProps {
   onSelect: (route: any) => void;
 }
 
 export default function BusRouteSearch({ onSelect }: BusRouteSearchProps) {
+  const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -35,20 +37,20 @@ export default function BusRouteSearch({ onSelect }: BusRouteSearchProps) {
     <div className="w-full space-y-4">
       <form onSubmit={handleSearch} className="flex gap-2">
         <Input
-          placeholder="Nhập số tuyến hoặc tên..."
+          placeholder={t('lines.placeholder')}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           className="flex-1"
         />
         <Button type="submit" disabled={loading}>
           {loading ? <Loader2 className="animate-spin h-4 w-4" /> : <Search className="h-4 w-4" />}
-          <span className="ml-2 hidden sm:inline">Tìm kiếm</span>
+          <span className="ml-2 hidden sm:inline">{t('lines.searchButton')}</span>
         </Button>
       </form>
 
       <div className="space-y-2 max-h-[300px] overflow-y-auto">
         {searched && results.length === 0 && !loading && (
-          <p className="text-sm text-gray-500 text-center py-4">Không tìm thấy tuyến nào phù hợp.</p>
+          <p className="text-sm text-gray-500 text-center py-4">{t('lines.noResults')}</p>
         )}
 
         {results.map((route, index) => (

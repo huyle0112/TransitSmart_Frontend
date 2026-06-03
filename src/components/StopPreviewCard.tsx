@@ -1,5 +1,6 @@
 import React from 'react';
 import { ShieldCheck, LampFloor, Accessibility, Armchair, Store } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface StopPreviewCardProps {
   stopName: string;
@@ -8,6 +9,7 @@ interface StopPreviewCardProps {
 }
 
 export default function StopPreviewCard({ stopName, style }: StopPreviewCardProps) {
+  const { t } = useTranslation();
   // varied data pool
   const SPOT_POOL = [
     { name: '☕ Highlight Coffee', dist: '50m' },
@@ -46,10 +48,10 @@ export default function StopPreviewCard({ stopName, style }: StopPreviewCardProp
   };
 
   const amenities = [
-    { icon: <Armchair size={14} />, label: 'Khu vực chờ', available: getAmenityStatus(stopName, 1) },
-    { icon: <LampFloor size={14} />, label: 'Đèn chiếu sáng', available: getAmenityStatus(stopName, 2) },
-    { icon: <Accessibility size={14} />, label: 'Hỗ trợ người khuyết tật', available: getAmenityStatus(stopName, 3) },
-    { icon: <Store size={14} />, label: 'Shop gần đây', available: getAmenityStatus(stopName, 4) },
+    { icon: <Armchair size={14} />, label: t('stopPreview.waitingArea'), available: getAmenityStatus(stopName, 1) },
+    { icon: <LampFloor size={14} />, label: t('stopPreview.lighting'), available: getAmenityStatus(stopName, 2) },
+    { icon: <Accessibility size={14} />, label: t('stopPreview.accessibility'), available: getAmenityStatus(stopName, 3) },
+    { icon: <Store size={14} />, label: t('stopPreview.nearbyShops'), available: getAmenityStatus(stopName, 4) },
   ];
 
   return (
@@ -78,7 +80,7 @@ export default function StopPreviewCard({ stopName, style }: StopPreviewCardProp
 
       {/* Content */}
       <div className="p-3">
-        <p className="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-3">Tiện ích</p>
+        <p className="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-3">{t('stopPreview.amenities')}</p>
         <div className="grid grid-cols-2 gap-2 mb-3">
           {amenities.map((item, i) => (
             <div key={i} className={`flex items-center gap-1.5 text-xs ${item.available ? 'text-navy' : 'text-gray-300'}`}>
@@ -88,7 +90,7 @@ export default function StopPreviewCard({ stopName, style }: StopPreviewCardProp
           ))}
         </div>
 
-        <p className="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-1">Địa điểm gần đây</p>
+        <p className="text-[10px] text-gray-500 uppercase tracking-wider font-bold mb-1">{t('stopPreview.nearbyPlaces')}</p>
         <div className="space-y-1">
           {selectedSpots.map((spot, i) => (
             <div key={i} className="flex items-center justify-between text-xs text-navy bg-gray-50 p-1.5 rounded">

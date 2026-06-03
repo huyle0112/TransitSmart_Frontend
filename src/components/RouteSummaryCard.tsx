@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Clock, Heart, Zap, Repeat, PersonStanding } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface RouteSummaryCardProps {
     route: any;
@@ -14,6 +15,7 @@ export default function RouteSummaryCard({
     onSaveFavorite,
 }: RouteSummaryCardProps) {
     const navigate = useNavigate();
+    const { t } = useTranslation();
 
     const handleViewDetails = () => {
         navigate('/route-detail', { state: { route } });
@@ -31,7 +33,7 @@ export default function RouteSummaryCard({
                 </div>
                 <span className="flex items-center gap-1 text-lg font-bold text-navy bg-gray-50 px-3 py-1 rounded-lg">
                     <Clock className="h-4 w-4 text-orange" />
-                    {route.summary.totalDuration}p
+                    {route.summary.totalDuration}{t('time.minsShort')}
                 </span>
             </header>
 
@@ -40,9 +42,9 @@ export default function RouteSummaryCard({
                 <div className="flex flex-wrap gap-2 mb-3">
                     {route.filters.map((filter: string) => {
                         const filterConfig: Record<string, { label: string; icon: any; color: string }> = {
-                            fastest: { label: 'Nhanh nhất', icon: Zap, color: 'bg-blue-100 text-blue-700 border-blue-200' },
-                            fewest_transfers: { label: 'Ít chuyển tuyến', icon: Repeat, color: 'bg-green-100 text-green-700 border-green-200' },
-                            least_walking: { label: 'Ít đi bộ', icon: PersonStanding, color: 'bg-purple-100 text-purple-700 border-purple-200' },
+                            fastest: { label: t('home.fastest'), icon: Zap, color: 'bg-blue-100 text-blue-700 border-blue-200' },
+                            fewest_transfers: { label: t('home.fewestTransfers'), icon: Repeat, color: 'bg-green-100 text-green-700 border-green-200' },
+                            least_walking: { label: t('home.leastWalking'), icon: PersonStanding, color: 'bg-purple-100 text-purple-700 border-purple-200' },
                         };
                         const config = filterConfig[filter] || { label: filter, icon: null, color: 'bg-gray-100 text-gray-700' };
                         const Icon = config.icon;
@@ -60,18 +62,18 @@ export default function RouteSummaryCard({
             {route.segments.length > 1 ? (
                 <div className="flex flex-wrap gap-4 text-sm text-gray-600 mb-4 pb-4 border-b border-gray-50">
                     <span>
-                        Chi phí: {(route.details?.total_fare || route.summary.totalCost || 0).toLocaleString()}đ
+                        {t('routeCard.cost', { cost: (route.details?.total_fare || route.summary.totalCost || 0).toLocaleString() })}
                     </span>
                     {route.details?.waiting_time_sec > 0 && (
                         <>
                             <span>•</span>
-                            <span>Chờ: {Math.ceil((route.details?.waiting_time_sec || 0) / 60)} phút</span>
+                            <span>{t('routeCard.waiting', { time: Math.ceil((route.details?.waiting_time_sec || 0) / 60) })}</span>
                         </>
                     )}
                 </div>
             ) : (
                 <div className="flex flex-wrap gap-4 text-sm text-gray-600 mb-4 pb-4 border-b border-gray-50">
-                    <span className="text-gray-500 italic">Chỉ cần đi bộ đến đích</span>
+                    <span className="text-gray-500 italic">{t('routeCard.walkOnly')}</span>
                 </div>
             )}
 
@@ -82,13 +84,13 @@ export default function RouteSummaryCard({
                             ? 'bg-gray-100 text-gray-600'
                             : 'bg-blue-100 text-blue-700'
                             }`}>
-                            {segment.mode === 'walk' ? 'Đi bộ' : segment.lineName}
+                            {segment.mode === 'walk' ? t('routeCard.walk') : segment.lineName}
                         </span>
                         <span className="text-xs text-gray-500">
-                            {segment.duration}p
+                            {segment.duration}{t('time.minsShort')}
                             {segment.waiting_time_sec && segment.waiting_time_sec > 0 && (
                                 <span className="text-orange ml-1">
-                                    + Chờ {Math.ceil(segment.waiting_time_sec / 60)}p
+                                    + {t('routeCard.waitShort', { time: Math.ceil(segment.waiting_time_sec / 60) })}
                                 </span>
                             )}
                         </span>
@@ -104,7 +106,7 @@ export default function RouteSummaryCard({
                     onClick={handleViewDetails}
                     className="text-navy hover:text-white hover:bg-orange hover:border-orange transition-colors"
                 >
-                    Xem chi tiết
+                    {t('routeCard.viewDetails')}
                 </Button>
                 <div>
                     {onSaveFavorite && (
@@ -115,7 +117,7 @@ export default function RouteSummaryCard({
                             className="text-gray-400 hover:text-red-500 hover:bg-red-50"
                         >
                             <Heart className="h-4 w-4 mr-1" />
-                            Lưu
+                            {t('routeCard.save')}
                         </Button>
                     )}
                 </div>

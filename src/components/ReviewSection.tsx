@@ -3,6 +3,8 @@ import { deleteReview, getReviews, submitReview } from '@/services/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from './ui/button';
 import { Loader2, Star, Trash2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { translateError } from '@/utils/errorTranslator';
 
 interface ReviewSectionProps {
   targetType: 'route' | 'stop';
@@ -11,6 +13,7 @@ interface ReviewSectionProps {
 }
 
 export default function ReviewSection({ targetType, targetId, title }: ReviewSectionProps) {
+  const { t } = useTranslation();
   const { isAuthenticated, user, isAdmin } = useAuth();
   const [reviews, setReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -26,7 +29,7 @@ export default function ReviewSection({ targetType, targetId, title }: ReviewSec
       setReviews(data.reviews || []);
       setError(null);
     } catch (err: any) {
-      setError(err?.response?.data?.message || 'Không thể tải đánh giá.');
+      setError(translateError(err?.response?.data?.message || 'Không thể tải đánh giá.', t));
     } finally {
       setLoading(false);
     }
@@ -39,7 +42,7 @@ export default function ReviewSection({ targetType, targetId, title }: ReviewSec
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!isAuthenticated) {
-      setError('Bạn cần đăng nhập để gửi đánh giá.');
+      setError(t('errors.loginRequiredToReview'));
       return;
     }
 
@@ -54,7 +57,7 @@ export default function ReviewSection({ targetType, targetId, title }: ReviewSec
       setForm({ rating: 5, comment: '' });
       loadReviews();
     } catch (err: any) {
-      setError(err?.response?.data?.message || 'Không thể gửi đánh giá.');
+      setError(translateError(err?.response?.data?.message || 'Không thể gửi đánh giá.', t));
     } finally {
       setSubmitting(false);
     }
@@ -65,7 +68,7 @@ export default function ReviewSection({ targetType, targetId, title }: ReviewSec
       await deleteReview(id);
       setReviews((prev) => prev.filter((r) => r.id !== id));
     } catch (err: any) {
-      setError(err?.response?.data?.message || 'Không thể xoá đánh giá.');
+      setError(translateError(err?.response?.data?.message || 'Không thể xoá đánh giá.', t));
     }
   };
 
@@ -74,9 +77,9 @@ export default function ReviewSection({ targetType, targetId, title }: ReviewSec
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs font-semibold text-orange uppercase tracking-wider mb-1">
-            Đánh giá
+            {t('reviews.rating')}
           </p>
-          <h3 className="text-lg font-bold text-navy">{title || 'Đánh giá & phản hồi'}</h3>
+          <h3 className="text-lg font-bold text-navy">{title || t('reviews.title')}</h3>
         </div>
         <div className="flex items-center gap-1 text-sm text-gray-600">
           <Star className="h-4 w-4 fill-orange text-orange" />
@@ -87,19 +90,19 @@ export default function ReviewSection({ targetType, targetId, title }: ReviewSec
       {loading ? (
         <div className="flex items-center gap-2 text-gray-500">
           <Loader2 className="h-4 w-4 animate-spin" />
-          Đang tải đánh giá...
+          {t('reviews.loading')}
         </div>
       ) : (
         <div className="space-y-3 max-h-64 overflow-y-auto pr-1 custom-scrollbar">
           {reviews.length === 0 && (
-            <p className="text-sm text-gray-500">Chưa có đánh giá nào.</p>
+            <p className="text-sm text-gray-500">{t('reviews.noReviews')}</p>
           )}
           {reviews.map((review) => (
             <div key={review.id} className="p-3 rounded-lg border border-gray-100 bg-gray-50">
               <div className="flex justify-between items-start">
                 <div>
                   <div className="flex items-center gap-2">
-                    <p className="text-sm font-semibold text-navy">{review.user?.name || 'Người dùng'}</p>
+                    <p className="text-sm font-semibold text-navy">{review.user?.name || t('reviews.anonymousUser')}</p>
                     <div className="flex items-center gap-1">
                       {Array.from({ length: review.rating || 0 }).map((_, idx) => (
                         <Star key={idx} className="h-4 w-4 text-orange fill-orange" />
@@ -142,7 +145,7 @@ export default function ReviewSection({ targetType, targetId, title }: ReviewSec
         <textarea
           className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-navy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange/20 focus-visible:border-orange transition-all"
           rows={3}
-          placeholder="Chia sẻ cảm nhận của bạn..."
+          placeholder={t('reviews.placeholder')}
           value={form.comment}
           onChange={(e) => setForm((prev) => ({ ...prev, comment: e.target.value }))}
         />
@@ -150,7 +153,7 @@ export default function ReviewSection({ targetType, targetId, title }: ReviewSec
         {error && <p className="text-sm text-red-500">{error}</p>}
 
         <Button type="submit" className="bg-navy hover:bg-navy/90" disabled={submitting}>
-          {submitting ? 'Đang gửi...' : 'Gửi đánh giá'}
+          {submitting ? t('reviews.submitting') : t('reviews.submit')}
         </Button>
       </form>
     </section>

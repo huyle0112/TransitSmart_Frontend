@@ -8,6 +8,7 @@ import { findRoutes, saveFavorite } from '@/services/api';
 import { reverseGeocode } from '@/services/geocoding';
 import { useAuth } from '@/contexts/AuthContext';
 import { ArrowLeft, Search, MapPin, Loader2, Trash2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 // Key dùng để lưu trữ trong Session Storage
 const STORAGE_KEY = 'map-search-state';
@@ -18,6 +19,7 @@ const MAX_WIDTH = 600;
 export default function MapSearchPage() {
     const navigate = useNavigate();
     const { isAuthenticated } = useAuth();
+    const { t } = useTranslation();
 
     // --- State Initialization ---
     const getSavedState = () => {
@@ -136,7 +138,7 @@ export default function MapSearchPage() {
             if (response.walkingRoute) {
                 setRoutes([{
                     id: 'walking',
-                    title: 'Đi bộ',
+                    title: t('home.leastWalking'),
                     from: response.from,
                     to: response.to,
                     segments: [{
@@ -157,7 +159,7 @@ export default function MapSearchPage() {
                 setRoutes(response.routes);
             }
         } catch (err: any) {
-            setError(err?.response?.data?.message || 'Không tìm thấy lộ trình phù hợp.');
+            setError(err?.response?.data?.message || t('home.noRouteFound'));
         } finally {
             setLoading(false);
         }
@@ -172,10 +174,10 @@ export default function MapSearchPage() {
 
     const mapCoordinates = useMemo(() => {
         const coords = [];
-        if (fromPlace?.coords) coords.push({ ...fromPlace, name: 'Điểm đi' });
-        if (toPlace?.coords) coords.push({ ...toPlace, name: 'Điểm đến' });
+        if (fromPlace?.coords) coords.push({ ...fromPlace, name: t('home.from') });
+        if (toPlace?.coords) coords.push({ ...toPlace, name: t('home.to') });
         return coords;
-    }, [fromPlace, toPlace]);
+    }, [fromPlace, toPlace, t]);
 
     const activeRoute = routes[0];
 
@@ -202,30 +204,30 @@ export default function MapSearchPage() {
                     <div className="p-4 border-b border-gray-100 bg-white">
                         {/* ... nội dung input ... */}
                         <div className="flex justify-between items-center mb-4">
-                            <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="text-gray-500 pl-0">
-                                <ArrowLeft className="h-4 w-4 mr-1" /> Trang chủ
+                            <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="text-gray-500 pl-0 cursor-pointer">
+                                <ArrowLeft className="h-4 w-4 mr-1" /> {t('authLayout.home')}
                             </Button>
                             {(fromPlace || toPlace) && (
-                                <Button variant="ghost" size="sm" onClick={handleClear} className="text-red-500 hover:text-red-600 hover:bg-red-50 h-8 px-2">
-                                    <Trash2 className="h-4 w-4 mr-1" /> Xóa
+                                <Button variant="ghost" size="sm" onClick={handleClear} className="text-red-500 hover:text-red-600 hover:bg-red-50 h-8 px-2 cursor-pointer">
+                                    <Trash2 className="h-4 w-4 mr-1" /> {t('home.clear')}
                                 </Button>
                             )}
                         </div>
 
-                        <h2 className="text-lg font-bold text-navy mb-4">Tìm đường trên bản đồ</h2>
+                        <h2 className="text-lg font-bold text-navy mb-4">{t('map.mapTitle')}</h2>
 
                         <div className="space-y-3">
                             <div className={getInputContainerClass('from')} onClick={() => setActiveField('from')}>
                                 <div className="flex items-center gap-2 mb-1">
                                     <div className="w-2 h-2 rounded-full bg-blue-600 shadow-sm"></div>
                                     <span className={`text-xs font-bold ${activeField === 'from' ? 'text-orange' : 'text-gray-500'}`}>
-                                        Điểm đi {activeField === 'from' && '(Đang chọn...)'}
+                                        {t('home.from')} {activeField === 'from' && `(${t('home.selecting')})`}
                                     </span>
                                 </div>
                                 <PlaceAutocomplete
                                     value={fromPlace}
                                     onChange={setFromPlace}
-                                    placeholder="Nhập hoặc click bản đồ"
+                                    placeholder={t('home.fromPlaceholder')}
                                     className="border-none shadow-none p-0 h-auto bg-transparent placeholder:text-gray-400 focus-visible:ring-0"
                                 />
                             </div>
@@ -234,13 +236,13 @@ export default function MapSearchPage() {
                                 <div className="flex items-center gap-2 mb-1">
                                     <div className="w-2 h-2 rounded-full bg-red-600 shadow-sm"></div>
                                     <span className={`text-xs font-bold ${activeField === 'to' ? 'text-orange' : 'text-gray-500'}`}>
-                                        Điểm đến {activeField === 'to' && '(Đang chọn...)'}
+                                        {t('home.to')} {activeField === 'to' && `(${t('home.selecting')})`}
                                     </span>
                                 </div>
                                 <PlaceAutocomplete
                                     value={toPlace}
                                     onChange={setToPlace}
-                                    placeholder="Nhập hoặc click bản đồ"
+                                    placeholder={t('home.toPlaceholder')}
                                     className="border-none shadow-none p-0 h-auto bg-transparent placeholder:text-gray-400 focus-visible:ring-0"
                                 />
                             </div>
@@ -248,10 +250,10 @@ export default function MapSearchPage() {
                             <Button
                                 onClick={handleSearch}
                                 disabled={loading || !fromPlace || !toPlace}
-                                className="w-full bg-navy hover:bg-navy/90 text-white mt-2"
+                                className="w-full bg-navy hover:bg-navy/90 text-white mt-2 cursor-pointer"
                             >
                                 {loading ? <Loader2 className="animate-spin h-4 w-4" /> : <Search className="h-4 w-4 mr-2" />}
-                                Tìm lộ trình
+                                {loading ? t('home.searching') : t('home.searchButton')}
                             </Button>
                         </div>
                     </div>
@@ -278,7 +280,7 @@ export default function MapSearchPage() {
                         {!loading && routes.length === 0 && !error && (
                             <div className="text-center text-gray-400 py-12 text-sm flex flex-col items-center">
                                 <MapPin className="h-10 w-10 mb-3 opacity-20" />
-                                <p>Chọn điểm đi và điểm đến trên bản đồ<br />để bắt đầu tìm kiếm.</p>
+                                <p className="whitespace-pre-line">{t('home.selectOnMapPrompt')}</p>
                             </div>
                         )}
                     </div>
@@ -303,7 +305,7 @@ export default function MapSearchPage() {
                     {activeField && (
                         <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur px-4 py-2 rounded-full shadow-lg border border-orange z-[1000] text-sm font-medium text-orange flex items-center animate-bounce">
                             <MapPin className="h-4 w-4 mr-2" />
-                            Đang chọn {activeField === 'from' ? 'Điểm đi' : 'Điểm đến'}... Click vào bản đồ
+                            {activeField === 'from' ? t('map.selectFromOnMapShort') : t('map.selectToOnMapShort')}
                         </div>
                     )}
                 </div>

@@ -1,11 +1,14 @@
 import { FiArrowDown } from 'react-icons/fi';
 import { motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 
 interface VideoHeroProps {
   onStartClick: () => void;
 }
 
 export const VideoHero = ({ onStartClick }: VideoHeroProps) => {
+  const { t } = useTranslation();
+
   return (
     <div className="relative w-full min-h-screen overflow-hidden bg-black">
       
@@ -18,7 +21,7 @@ export const VideoHero = ({ onStartClick }: VideoHeroProps) => {
         className="absolute top-0 left-0 w-full h-full object-cover opacity-90"
       >
         <source src="/videos/intro.mp4" type="video/mp4" />
-        Trình duyệt của bạn không hỗ trợ thẻ video.
+        {t('hero.videoFallback')}
       </video>
 
       {/* 2. LỚP GRADIENT ĐEN */}
@@ -42,9 +45,9 @@ export const VideoHero = ({ onStartClick }: VideoHeroProps) => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="text-lg md:text-2xl text-gray-200 mb-12 max-w-2xl font-light leading-snug drop-shadow-md"
+            className="text-lg md:text-2xl text-gray-200 mb-12 max-w-2xl font-light leading-snug drop-shadow-md whitespace-pre-line"
         >
-          Dữ liệu thời gian thực. Lộ trình tối ưu. <br className='hidden sm:inline'/>Kết nối giao thông công cộng.
+          {t('hero.subtitle')}
         </motion.p>
         
         {/* Nút bấm */}
@@ -55,12 +58,12 @@ export const VideoHero = ({ onStartClick }: VideoHeroProps) => {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={onStartClick}
-            className="group relative flex items-center gap-3 px-8 py-4 bg-orange-600 text-white font-bold rounded-full text-lg shadow-xl hover:bg-orange-500 hover:shadow-orange-500/50 transition-all duration-300"
+            className="group relative flex items-center gap-3 px-8 py-4 bg-orange-600 text-white font-bold rounded-full text-lg shadow-xl hover:bg-orange-500 hover:shadow-orange-500/50 transition-all duration-300 cursor-pointer"
         >
-            Bắt đầu hành trình
+            {t('hero.start')}
             <FiArrowDown className="h-5 w-5 group-hover:translate-y-0.5 transition-transform duration-300"/>
         </motion.button>
       </div>
     </div>
   );
-};
+};
